@@ -5,11 +5,12 @@ const config = new pulumi.Config();
 
 // Define your AWS region and availability zones.
 const project = config.require("project");
+const vpcCidrBlock = config.require("vpcCidrBlock");
 const publicSubnetCidrBlocks = JSON.parse(config.require("publicSubnetCidrBlocks"));
 const privateSubnetCidrBlocks = JSON.parse(config.require("privateSubnetCidrBlocks"));
 
 /**
- * Generate dynamic tags for a resource.
+ * Generate dynamic tags for resources.
  * @param {string} resourceName - Name of resource.
  * @param {string[]} additionalTags - Additional tags.
  * @returns {object} - An object of tags.
@@ -24,7 +25,7 @@ function generateTags(resourceName, additionalTags = []) {
 
 // Create a new VPC.
 const myVpc = new aws.ec2.Vpc(generateTags('vpc').Name, {
-  cidrBlock: "10.0.0.0/16", // Change to your desired CIDR block.
+  cidrBlock: vpcCidrBlock,
   defaultRouteTableAssociation: false,
   tags: generateTags('vpc'),
 });
@@ -91,10 +92,10 @@ privateSubnets.forEach((subnetId, index) => {
 
 const routeTableAssociation = new aws.ec2.RouteTableAssociation("routeTableAssociation", {
     gatewayId: myInternetGateway.id,
-    routeTableId: publicRouteTable.id,
+    routeTableId: privateRouteTable.id,
 });
 
 // Export the VPC ID and other resources if needed.
 exports.vpcId = myVpc.id;
-exports.publicSubnetIds = publicSubnetCidrBlocks.map((subnet) => subnet.id);
-exports.privateSubnetIds = privateSubnetCidrBlocks.map((subnet) => subnet.id);
+exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
+exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
