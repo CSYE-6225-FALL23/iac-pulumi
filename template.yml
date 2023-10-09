@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2 with PostgreSQL
+
+Resources:
+  CSYE6225VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+    
+  CSYE6225InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  CSYE6225AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: CSYE6225VPC
+      InternetGatewayId:
+        Ref: CSYE6225InternetGateway
+
+  CSYE6225SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CSYE6225VPC
+      CidrBlock: '10.0.0.0/24'
+      AvailabilityZone: 'us-east-1a'
+
+  CSYE6225SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CSYE6225VPC
+      CidrBlock: '10.0.1.0/24'
+      AvailabilityZone: 'us-east-1b'
+        
+  CSYE6225PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: CSYE6225VPC
+
+  CSYE6225Route:
+    Type: AWS::EC2::Route
+    DependsOn: CSYE6225PublicRouteTable
+    Properties:
+      RouteTableId:
+        Ref: CSYE6225PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: CSYE6225InternetGateway
+
+  CSYE6225AttachRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref CSYE6225SubnetA
+      RouteTableId: !Ref CSYE6225PublicRouteTable
+
+  # CSYE6225DBSecurityGroup:
+  #   Type: 'AWS::EC2::SecurityGroup'
+  #   Properties:
+  #     GroupDescription: Allow access to the mysql from the Web Server
+  #     VpcId: !Ref CSYE6225VPC
+  #     SecurityGroupIngress:
+  #       - IpProtocol: tcp
+  #         FromPort: 5432
+  #         ToPort: 5432
+  #         CidrIp: 10.0.0.0/16
+
+  # CSYE6225DBSubnetGroup:
+  #   Type: 'AWS::RDS::DBSubnetGroup'
+  #   Properties:
+  #     DBSubnetGroupDescription: Subnet group for the RDS instance
+  #     SubnetIds:
+  #       - !Ref CSYE6225SubnetA
+  #       - !Ref CSYE6225SubnetB
+  
+  # CSYE6225DBInstance:
+  #   Type: 'AWS::RDS::DBInstance'
+  #   Properties:
+  #     DBInstanceIdentifier: mydbinstance
+  #     AllocatedStorage: 20
+  #     DBInstanceClass: db.t3.micro
+  #     Engine: postgres
+  #     MasterUsername: csye6225
+  #     MasterUserPassword: csye6225
+  #     DBSubnetGroupName: !Ref CSYE6225DBSubnetGroup
+  #     PubliclyAccessible: false
+  #     MultiAZ: false
+  #     AvailabilityZone: us-east-1a
+  #     VPCSecurityGroups:
+  #       - !Ref CSYE6225DBSecurityGroup
+
+  CSYE6225EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: CSYE6225EC2SecurityGroup
+      GroupDescription: Allow incoming SSH and TCP
+      VpcId: !Ref CSYE6225VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+
+  CSYE6225EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      # SecurityGroupIds:
+      #   - !Ref CSYE6225EC2SecurityGroup
+      KeyName: csye6225-key-pair
+      # SubnetId: !Ref CSYE6225SubnetA
+      NetworkInterfaces: 
+      - AssociatePublicIpAddress: 'true'
+        DeviceIndex: '0'
+        GroupSet: 
+          - Ref: 'CSYE6225EC2SecurityGroup'
+        SubnetId: 
+          Ref: 'CSYE6225SubnetA'
+      ImageId: ami-06db4d78cb1d3bbf9
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+
+Outputs:
+  EC2InstanceId:
+    Description: ID of the EC2 instance
+    Value: !Ref CSYE6225EC2Instance
