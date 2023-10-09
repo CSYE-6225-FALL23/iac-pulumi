@@ -1,6 +1,6 @@
-name: aws-pulumi
+name: iac-pulumi
 runtime:
   name: nodejs
   options:
     typescript: false
-description: CSYE 6225 iac
+description: IAC for webapp
