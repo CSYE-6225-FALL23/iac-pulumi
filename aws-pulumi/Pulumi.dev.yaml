@@ -1,14 +1,8 @@
 config:
-<<<<<<< HEAD
-  project: webapp2
-  aws:profile: dev
-  aws:region: us-east-1
-  vpcCidrBlock: 10.0.0.0/16
-=======
   project: webapp
   aws:profile: dev
   aws:region: us-east-1
->>>>>>> 6b6dcd4 (ass3 and pulumi)
+  vpcCidrBlock: 10.0.0.0/16
   publicSubnetCidrBlocks:
     - pub-sn-1:
         cidr: 10.0.0.0/24
@@ -28,9 +22,4 @@ config:
         az: us-east-1b
     - pvt-sn-3:
         cidr: 10.0.5.0/24
-<<<<<<< HEAD
         az: us-east-1c
-=======
-        az: us-east-1c
-  vpcCidrBlock: 10.0.0.0/16
->>>>>>> 6b6dcd4 (ass3 and pulumi)
