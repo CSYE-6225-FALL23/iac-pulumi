@@ -1,22 +1,6 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 name: iac-pulumi
-=======
-name: aws-pulumi
->>>>>>> 6b6dcd4 (ass3 and pulumi)
-=======
-name: iac-pulumi
->>>>>>> e06cc22 (pulumi outputs debug)
 runtime:
   name: nodejs
   options:
     typescript: false
-<<<<<<< HEAD
-<<<<<<< HEAD
 description: IAC for webapp
-=======
-description: CSYE 6225 iac
->>>>>>> 6b6dcd4 (ass3 and pulumi)
-=======
-description: IAC for webapp
->>>>>>> e06cc22 (pulumi outputs debug)
