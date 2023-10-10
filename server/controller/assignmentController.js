@@ -40,7 +40,7 @@ const createAssignment = async (req, res) => {
     res.status(201).send(assignment);
   } catch (error) {
     console.error("Error creating assignment:", error);
-    if (!error.statusCode) error.statusCode = 500;
+    if (!error.statusCode) error.statusCode = 400;
     res.status(error.statusCode).send(error);
   }
 };
