@@ -1,5 +1,5 @@
 config:
-  project: webapp
+  project: webapp2
   aws:profile: dev
   aws:region: us-east-1
   vpcCidrBlock: 10.0.0.0/16
