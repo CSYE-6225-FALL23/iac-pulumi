@@ -95,6 +95,8 @@ const routeTableAssociation = new aws.ec2.RouteTableAssociation("routeTableAssoc
     routeTableId: privateRouteTable.id,
 });
 
+// Export the VPC ID and other resources if needed.
+exports.vpcId = myVpc.id;
 exports.InternetGatewayId = myInternetGateway.id;
 exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
 exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
