@@ -3,7 +3,7 @@ const aws = require("@pulumi/aws");
 
 const config = new pulumi.Config();
 
-// Define your AWS region and availability zones.
+// Import variables.
 const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
 const publicSubnetCidrBlocks = JSON.parse(config.require("publicSubnetCidrBlocks"));
@@ -36,7 +36,7 @@ const myInternetGateway = new aws.ec2.InternetGateway(generateTags('ig').Name, {
   tags: generateTags('ig'),
 });
 
-// Create a public subnet in each availability zone.
+// Create a public subnets in given availability zone.
 const publicSubnets = publicSubnetCidrBlocks.map((subnet) => {
   const sn = subnet[Object.keys(subnet)[0]];
   return new aws.ec2.Subnet(generateTags(`pub-sn-${Object.keys(subnet)[0]}`).Name, {
@@ -47,7 +47,7 @@ const publicSubnets = publicSubnetCidrBlocks.map((subnet) => {
   });
 });
 
-// Create a private subnet in each availability zone.
+// Create a private subnets in given availability zone.
 const privateSubnets = privateSubnetCidrBlocks.map((subnet) => {
   const sn = subnet[Object.keys(subnet)[0]];
   return new aws.ec2.Subnet(generateTags(`pvt-sn-${Object.keys(subnet)[0]}`).Name, {
@@ -95,7 +95,6 @@ const routeTableAssociation = new aws.ec2.RouteTableAssociation("routeTableAssoc
     routeTableId: privateRouteTable.id,
 });
 
-// Export the VPC ID and other resources if needed.
-exports.vpcId = myVpc.id;
+exports.InternetGatewayId = myInternetGateway.id;
 exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
 exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
