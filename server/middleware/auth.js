@@ -24,8 +24,9 @@ const isUserAuthenticated = async (req, res, next) => {
 
     const validUser = await userClient.getUser(email);
     if (!validUser) throw new AuthErrorHandler("AUTH_103");
-
-    if (password !== validUser.password) throw new AuthErrorHandler("AUTH_103");
+  
+    const match = await userClient.comparePasswords(password, validUser.password)
+    if (!match) throw new AuthErrorHandler("AUTH_103");
 
     req.user = {
       email,
