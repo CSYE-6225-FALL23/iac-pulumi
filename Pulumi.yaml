@@ -1,6 +1,0 @@
-name: webapp
-runtime:
-  name: nodejs
-  options:
-    typescript: false
-description: IAC for webapp
