@@ -1,71 +1,68 @@
-# DB Health Status Check
+# Infrastructure as Code for a webapp
 
-A healthz API to check Postgres database health status
+AWS Infrastructure as code using pulumi for AWS
 
 ## Table of Contents
 
-- [Healthz App](#db-health-status-check)
+- [IAC for webapp](#iac-webapp)
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
   - [Getting Started](#getting-started)
     - [Installation](#installation)
     - [Configuration](#configuration)
   - [Usage](#usage)
-  - [Development](#development)
-  - [Testing](#testing)
-  - [Deployment](#deployment)
-  - [Documentation](#documentation)
   - [License](#license)
 
 ## Prerequisites
 
 - Node.js 18.x or higher
-- Docker 20.x or higher
-- Git
+- pulumi
 
 ## Getting Started
 
-To get started with Node.js healthz API, follow these steps:
+To get started with IAC with pulumi:
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/CSYE-6225-FALL23/csye_6225.git
-cd csye_6225
+# Create a new pulumi project in js
+pulumi new aws-javascript
 
-# Install DB dependencies
-cd .\database
-npm install
-
-# Install server dependencies
-cd .\server
-npm install
+# Set aws profile and region
+pulumi config set aws:profile <profilename>
+pulumi config set aws:region <your-region>
 ```
 
 ### Configuration
-Create a .env file in .\server and configure the following environment variables:
-```env
-SERVER_PORT=8000
-```
-
-Create a .env file in .\server and .\database and configure the following environment variables:
-```env
-POSTGRES_DB='postgres'
-POSTGRES_USER='postgres'
-POSTGRES_PASSWORD='postgres'
-POSTGRES_URI='localhost'
+Create a profile.<stackname>.yaml (if it doesn't exist) file to configure the following variables:
+```yaml
+config:
+  project: webapp
+  aws:profile: dev
+  aws:region: us-east-1
+  vpcCidrBlock: 10.0.0.0/16
 ```
 
 ## Usage
-- Start the development server using a scipt: 
-  - .\deployment\start.bat
-- Access the API at http://localhost:8000
-
-## Testing
-To run tests, use the following command inside a package:
 ```bash
-npm test
+# View pulumi configuration
+pulumi config
+
+# Create a new stack
+pulumi stack init <stackname>
+
+# Switch stack
+pulumi stack change <stackname>
+
+# View all stacks
+pulumi stack ls
+
+# Create resources
+pulumi up
+
+# Destroy resources
+pulumi destroy
 ```
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](.\LICENSE) file for details.
