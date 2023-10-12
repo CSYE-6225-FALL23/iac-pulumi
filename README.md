@@ -16,7 +16,7 @@ AWS Infrastructure as code using pulumi for AWS
 ## Prerequisites
 
 - Node.js 18.x or higher
-- pulumi
+- Pulumi
 
 ## Getting Started
 
@@ -37,10 +37,11 @@ pulumi config set aws:region <your-region>
 Create a profile.<stackname>.yaml (if it doesn't exist) file to configure the following variables:
 ```yaml
 config:
-  project: webapp
+  webapp:project: webapp
   aws:profile: dev
-  aws:region: us-east-1
-  vpcCidrBlock: 10.0.0.0/16
+  aws:region: us-west-1
+  webapp:numberOfAzs: 3
+  webapp:vpcCidrBlock: 10.0.0.0/16
 ```
 
 ## Usage
@@ -52,7 +53,7 @@ pulumi config
 pulumi stack init <stackname>
 
 # Switch stack
-pulumi stack change <stackname>
+pulumi stack select <stackname>
 
 # View all stacks
 pulumi stack ls
