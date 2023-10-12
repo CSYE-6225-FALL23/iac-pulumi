@@ -6,7 +6,7 @@ const config = new pulumi.Config();
 // Import variables.
 const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
-const numerOfAzs = config.require("numberOfAzs");
+const maxAllowedAzs = config.require("maxAllowedAzs");
 
 var azs = []
 
@@ -29,7 +29,7 @@ const loadAvailabilityZones = async () => {
     const zones = await aws.getAvailabilityZones({
       state: "available",
     });
-    azs = zones.names.slice(0, Math.min(zones.names.length, numerOfAzs));
+    azs = zones.names.slice(0, Math.min(zones.names.length, maxAllowedAzs));
   } catch (error) {
     console.error(error);
   }
