@@ -16,7 +16,7 @@ var azs = []
  * @param {string[]} additionalTags - Additional tags.
  * @returns {object} - An object of tags.
  */
-function generateTags(resourceName, additionalTags = []) {
+const generateTags = (resourceName, additionalTags = []) => {
   const baseTags = {
     Name: `${project}-${pulumi.getStack()}-${resourceName}`,
   };
