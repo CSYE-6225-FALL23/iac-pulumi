@@ -2,5 +2,5 @@ config:
   webapp:project: webapp
   aws:profile: dev
   aws:region: us-west-1
-  webapp:numberOfAzs: 3
+  webapp:maxAllowedAzs: 3
   webapp:vpcCidrBlock: 10.0.0.0/16
