@@ -6,7 +6,7 @@ const config = new pulumi.Config();
 // Import variables.
 const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
-const region = config.require("aws:region");
+const region = config.get("aws:region");
 const publicSubnetCidrBlocks = JSON.parse(config.require("publicSubnetCidrBlocks"));
 const privateSubnetCidrBlocks = JSON.parse(config.require("privateSubnetCidrBlocks"));
 
@@ -30,7 +30,7 @@ async function getAvailabilityZones(region) {
 
 (async () => {
   try {
-  const azs = await getAvailabilityZones(region);
+  azs = await getAvailabilityZones(region);
 
   azs.forEach(az => {
     console.log(`Availability Zone: ${az.name}`);
