@@ -28,13 +28,16 @@ To get started with IAC with pulumi:
 # Create a new pulumi project in js
 pulumi new aws-javascript
 
+# Create a stck
+pulumi stack init <stackname>
+
 # Set aws profile and region
 pulumi config set aws:profile <profilename>
 pulumi config set aws:region <your-region>
 ```
 
 ### Configuration
-Create a profile.<stackname>.yaml (if it doesn't exist) file to configure the following variables:
+Create a profile.<stackname>.yaml or append the following variables:
 ```yaml
 config:
   webapp:project: webapp
@@ -48,9 +51,6 @@ config:
 ```bash
 # View pulumi configuration
 pulumi config
-
-# Create a new stack
-pulumi stack init <stackname>
 
 # Switch stack
 pulumi stack select <stackname>
