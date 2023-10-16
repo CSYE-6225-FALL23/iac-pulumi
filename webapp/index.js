@@ -35,17 +35,16 @@ const loadAvailabilityZones = async () => {
   }
 };
 
-const amiId = "ami-09d8eefafe3ffd3c9";
 
 const getAmi = async () => {
   try {
     const ami = await aws.ec2.getAmi({
-      owners: ["self"],
+      owners: ["253323498692"],
       mostRecent: true,
       filters: [
         {
-          name: "image-id",
-          values: [amiId],
+          name: "name",
+          values: ['webapp-ami-*'],
         },
       ],
     });
@@ -192,7 +191,7 @@ echo "Hello, World!" > index.html
 nohup python -m SimpleHTTPServer 80 &`;
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2"), {
-    ami: "ami-09d8eefafe3ffd3c9",
+    ami: ami.id,
     instanceType: "t2.micro",
     keyName: "csye6225-dev-key",
     subnetId: publicSubnets[0].id,
