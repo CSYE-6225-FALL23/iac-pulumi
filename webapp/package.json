@@ -1,9 +1,15 @@
 {
     "name": "webapp",
     "main": "index.js",
+    "scripts": {
+        "format": "prettier --write \"**/*.js\""
+    },
     "dependencies": {
-        "@pulumi/pulumi": "^3.0.0",
         "@pulumi/aws": "^5.0.0",
-        "@pulumi/awsx": "^1.0.0"
+        "@pulumi/awsx": "^1.0.0",
+        "@pulumi/pulumi": "^3.0.0"
+    },
+    "devDependencies": {
+        "prettier": "^3.0.3"
     }
 }
