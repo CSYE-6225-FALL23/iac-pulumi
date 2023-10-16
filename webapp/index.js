@@ -187,10 +187,13 @@ const getAmi = async () => {
   const userData =
     // <-- ADD THIS DEFINITION
     `#!/bin/bash
-echo "Hello, World!" > index.html
-nohup python -m SimpleHTTPServer 80 &`;
+    cd /home/admin
+    unzip webapp.zip
+    cd database; npm i
+    cd ../server; npm i
+    npm start`;
 
-  const ec2Instance = new aws.ec2.Instance(generateTags("ec2"), {
+  const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
     ami: ami.id,
     instanceType: "t2.micro",
     keyName: "csye6225-dev-key",
@@ -198,6 +201,7 @@ nohup python -m SimpleHTTPServer 80 &`;
     vpcSecurityGroupIds: [ec2SecurityGroup.id],
     associatePublicIpAddress: true,
     userData: userData,
+    tags: generateTags("ec2"),
   });
 
   // Export the VPC ID and other resources if needed.
@@ -205,4 +209,5 @@ nohup python -m SimpleHTTPServer 80 &`;
   exports.InternetGatewayId = myInternetGateway.id;
   exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
   exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
+  exports.ec2InstanceId = ec2Instance.id
 })();
