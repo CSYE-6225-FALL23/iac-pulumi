@@ -35,9 +35,28 @@ const loadAvailabilityZones = async () => {
   }
 }
 
+const amiId = "ami-09d8eefafe3ffd3c9";
+
+const getAmi = async () => {
+  try {
+    const ami = await aws.ec2.getAmi({
+      owners: ["self"],
+      mostRecent: true,
+      filters: [{
+          name: "image-id",
+          values: [amiId],
+      }],
+    });
+    return ami;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 (async () => {
   //Load AZs for a given region
   await loadAvailabilityZones();
+  const ami = await getAmi();
   
   // Create a new VPC.
   const myVpc = new aws.ec2.Vpc(generateTags('vpc').Name, {
@@ -108,6 +127,46 @@ const loadAvailabilityZones = async () => {
       gatewayId: myInternetGateway.id,
       routeTableId: privateRouteTable.id,
   });
+
+  const ec2SecurityGroup = new aws.ec2.SecurityGroup(generateTags('ec2-sg').Name, {
+    name: generateTags('ec2-sg').Name,
+    description: "Allow incoming SSH and TCP",
+    vpcId: myVpc.id,
+    ingress: [
+        {
+            protocol: "tcp",
+            fromPort: 22,
+            toPort: 22,
+            cidrBlocks: ["0.0.0.0/0"],
+        },
+        {
+            protocol: "tcp",
+            fromPort: 80,
+            toPort: 80,
+            cidrBlocks: ["0.0.0.0/0"],
+        },
+        {
+            protocol: "tcp",
+            fromPort: 8000,
+            toPort: 8000,
+            cidrBlocks: ["0.0.0.0/0"],
+        },
+    ],
+});
+
+const ec2Instance = new aws.ec2.Instance(generateTags('ec2'), {
+  ami: "ami-09d8eefafe3ffd3c9",
+  instanceType: ami.imageLocation.split("/")[1],
+  keyName: "csye6225-key-pair",
+  networkInterfaces: [
+      {
+          associatePublicIpAddress: true,
+          deviceIndex: 0,
+          securityGroups: [ec2SecurityGroup.name],
+          subnetId: publicSubnets[0].id,
+      },
+  ],
+});
 
   // Export the VPC ID and other resources if needed.
   exports.vpcId = myVpc.id;
