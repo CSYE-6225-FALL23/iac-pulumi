@@ -8,10 +8,14 @@ const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
 const maxAllowedAzs = config.require("maxAllowedAzs");
 const myIp = config.require("myIp");
-const serverPort = config.require("serverPort")
+const serverPort = config.require("serverPort");
 
 const ec2KeyPair = config.require("ec2Keypair");
 const ec2InstanceType = config.require("ec2InstanceType");
+const ec2UserData = config.require("ec2UserData");
+
+const ebsVolumeSize = config.require("ebsVolumeSize");
+const ebsVolumeType = config.require("ebsVolumeType");
 
 var azs = [];
 
@@ -190,22 +194,22 @@ const getAmi = async () => {
     },
   );
 
-  const userData =
-    `#!/bin/bash
-    sudo apt-get -y remove git
-    sudo apt-get -y autoremove
-    cd /home/admin
-    unzip webapp.zip -d /home/admin/webapp
-    cd webapp/server; npm start`;
+  const userData = ec2UserData;
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
     ami: ami.id,
     instanceType: ec2InstanceType,
     keyName: ec2KeyPair,
     subnetId: publicSubnets[0].id,
+    disableApiTermination: false,
     vpcSecurityGroupIds: [ec2SecurityGroup.id],
     associatePublicIpAddress: true,
     userData: userData,
+    rootBlockDevice: {
+      volumeSize: ebsVolumeSize,
+      volumeType: ebsVolumeType,
+      deleteOnTermination: true,
+    },
     tags: generateTags("ec2"),
   });
 
