@@ -8,6 +8,7 @@ const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
 const maxAllowedAzs = config.require("maxAllowedAzs");
 const myIp = config.require("myIp");
+const serverPort = config.require("serverPort")
 
 const ec2KeyPair = config.require("ec2Keypair");
 const ec2InstanceType = config.require("ec2InstanceType");
@@ -49,6 +50,10 @@ const getAmi = async () => {
           name: "name",
           values: ["webapp-ami-*"],
         },
+        {
+          name: "state",
+          values: ["available"]
+        }
       ],
     });
     return ami;
@@ -177,8 +182,8 @@ const getAmi = async () => {
         },
         {
           protocol: "tcp",
-          fromPort: 8000,
-          toPort: 8000,
+          fromPort: serverPort,
+          toPort: serverPort,
           cidrBlocks: ["0.0.0.0/0"],
         },
       ],
@@ -187,9 +192,11 @@ const getAmi = async () => {
 
   const userData =
     `#!/bin/bash
+    sudo apt-get -y remove git
+    sudo apt-get -y autoremove
     cd /home/admin
-    unzip webapp.zip
-    cd server; npm start`;
+    unzip webapp.zip -d /home/admin/webapp
+    cd webapp/server; npm start`;
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
     ami: ami.id,
