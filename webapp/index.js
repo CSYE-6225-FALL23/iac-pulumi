@@ -182,21 +182,14 @@ const getAmi = async () => {
           cidrBlocks: ["0.0.0.0/0"],
         },
       ],
-      // egress: [
-      //   {
-      //     fromPort: 0,
-      //     toPort: 0,
-      //     protocol: "-1",
-      //     cidrBlocks: ["0.0.0.0/0"],
-      //   },
-      // ],
     },
   );
 
   const userData =
     `#!/bin/bash
     cd /home/admin
-    npm start`;
+    unzip webapp.zip
+    cd server; npm start`;
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
     ami: ami.id,
@@ -210,9 +203,9 @@ const getAmi = async () => {
   });
 
   // Export the VPC ID and other resources if needed.
-  // exports.vpcId = myVpc.id;
-  // exports.InternetGatewayId = myInternetGateway.id;
-  // exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
-  // exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
+  exports.vpcId = myVpc.id;
+  exports.InternetGatewayId = myInternetGateway.id;
+  exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
+  exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
   exports.ec2InstanceIp = ec2Instance.publicIp;
 })();
