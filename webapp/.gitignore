@@ -1,1 +1,8 @@
+# Ignore NPM Packages
 /node_modules/
+
+# Ignore all Pulumi config files
+*Pulumi.*
+
+# Except for pulumi.yml
+!pulumi.yml
