@@ -7,6 +7,7 @@ const config = new pulumi.Config();
 const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
 const maxAllowedAzs = config.require("maxAllowedAzs");
+const myIp = config.require("myIp");
 
 const ec2KeyPair = config.require("ec2Keypair");
 const ec2InstanceType = config.require("ec2InstanceType");
@@ -160,7 +161,7 @@ const getAmi = async () => {
           protocol: "tcp",
           fromPort: 22,
           toPort: 22,
-          cidrBlocks: ["0.0.0.0/0"],
+          cidrBlocks: [myIp],
         },
         {
           protocol: "tcp",
@@ -181,24 +182,20 @@ const getAmi = async () => {
           cidrBlocks: ["0.0.0.0/0"],
         },
       ],
-      egress: [
-        {
-          fromPort: 0,
-          toPort: 0,
-          protocol: "-1",
-          cidrBlocks: ["0.0.0.0/0"],
-        },
-      ],
+      // egress: [
+      //   {
+      //     fromPort: 0,
+      //     toPort: 0,
+      //     protocol: "-1",
+      //     cidrBlocks: ["0.0.0.0/0"],
+      //   },
+      // ],
     },
   );
 
   const userData =
-    // <-- ADD THIS DEFINITION
     `#!/bin/bash
     cd /home/admin
-    unzip webapp.zip
-    cd database; npm i
-    cd ../server; npm i
     npm start`;
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
@@ -213,9 +210,9 @@ const getAmi = async () => {
   });
 
   // Export the VPC ID and other resources if needed.
-  exports.vpcId = myVpc.id;
-  exports.InternetGatewayId = myInternetGateway.id;
-  exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
-  exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
-  exports.ec2InstanceId = ec2Instance.id;
+  // exports.vpcId = myVpc.id;
+  // exports.InternetGatewayId = myInternetGateway.id;
+  // exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
+  // exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
+  exports.ec2InstanceIp = ec2Instance.publicIp;
 })();
