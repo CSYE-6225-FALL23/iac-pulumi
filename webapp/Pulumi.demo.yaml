@@ -1,6 +1,0 @@
-config:
-  webapp:project: webapp
-  aws:profile: demo
-  aws:region: us-west-2
-  webapp:maxAllowedAzs: 2
-  webapp:vpcCidrBlock: 10.0.0.0/16
