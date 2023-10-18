@@ -162,6 +162,12 @@ const getAmi = async () => {
         },
         {
           protocol: "tcp",
+          fromPort: 443,
+          toPort: 443,
+          cidrBlocks: ["0.0.0.0/0"],
+        },
+        {
+          protocol: "tcp",
           fromPort: 80,
           toPort: 80,
           cidrBlocks: ["0.0.0.0/0"],
