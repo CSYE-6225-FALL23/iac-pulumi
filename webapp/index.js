@@ -8,6 +8,9 @@ const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
 const maxAllowedAzs = config.require("maxAllowedAzs");
 
+const ec2KeyPair = config.require("ec2Keypair");
+const ec2InstanceType = config.require("ec2InstanceType");
+
 var azs = [];
 
 /**
@@ -35,7 +38,6 @@ const loadAvailabilityZones = async () => {
   }
 };
 
-
 const getAmi = async () => {
   try {
     const ami = await aws.ec2.getAmi({
@@ -44,7 +46,7 @@ const getAmi = async () => {
       filters: [
         {
           name: "name",
-          values: ['webapp-ami-*'],
+          values: ["webapp-ami-*"],
         },
       ],
     });
@@ -201,8 +203,8 @@ const getAmi = async () => {
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
     ami: ami.id,
-    instanceType: "t2.micro",
-    keyName: "csye6225-dev-key",
+    instanceType: ec2InstanceType,
+    keyName: ec2KeyPair,
     subnetId: publicSubnets[0].id,
     vpcSecurityGroupIds: [ec2SecurityGroup.id],
     associatePublicIpAddress: true,
@@ -215,5 +217,5 @@ const getAmi = async () => {
   exports.InternetGatewayId = myInternetGateway.id;
   exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
   exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
-  exports.ec2InstanceId = ec2Instance.id
+  exports.ec2InstanceId = ec2Instance.id;
 })();
