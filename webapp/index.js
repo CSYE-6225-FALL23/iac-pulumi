@@ -66,7 +66,7 @@ const getAmi = async () => {
   }
 };
 
-(async () => {
+const main = async () => {
   //Load AZs for a given region
   await loadAvailabilityZones();
   const ami = await getAmi();
@@ -214,9 +214,18 @@ const getAmi = async () => {
   });
 
   // Export the VPC ID and other resources if needed.
-  exports.vpcId = myVpc.id;
-  exports.InternetGatewayId = myInternetGateway.id;
-  exports.publicSubnetIds = publicSubnets.map((subnet) => subnet.id);
-  exports.privateSubnetIds = privateSubnets.map((subnet) => subnet.id);
-  exports.ec2InstanceIp = ec2Instance.publicIp;
-})();
+  return {
+    vpcId: myVpc.id,
+    internetGatewayId: myInternetGateway.id,
+    publicSubnetIds: publicSubnets.map((subnet) => subnet.id),
+    privateSubnetIds: privateSubnets.map((subnet) => subnet.id),
+    ec2InstanceIp: ec2Instance.publicIp,
+  }
+};
+
+const outputs = main();
+exports.vpc = outputs.then(obj => obj.vpcId);
+exports.internetGateway = outputs.then(obj => obj.internetGatewayId);
+exports.publicSubnets = outputs.then(obj => obj.publicSubnetIds);
+exports.privateSubnets = outputs.then(obj => obj.privateSubnetIds);
+exports.ec2Ip = outputs.then(obj => obj.ec2InstanceIp);
