@@ -301,25 +301,25 @@ const main = async () => {
       sudo cp -rf /home/admin/webapp.zip /var/www/
       
       cd /var/www
-      sudo unzip -o webapp.zip -d ${APP_DIR}
+      sudo unzip -o webapp.zip -d $APP_DIR
       
       # Create the user
-      sudo useradd -m ${APP_USER}
-      sudo groupadd ${APP_GROUP}
+      sudo useradd -m $APP_USER
+      sudo groupadd $APP_GROUP
       
       # Change user password
-      echo "${APP_USER}:${APP_USER_PASSWORD}" | sudo chpasswd
+      echo "$APP_USER:$APP_USER_PASSWORD" | sudo chpasswd
       
       # Add the user to the group
-      sudo usermod -aG ${APP_GROUP} ${APP_USER}
+      sudo usermod -aG $APP_GROUP $APP_USER
       
       # Set directory permissions
-      sudo chown -R ${APP_USER}:${APP_GROUP} ${APP_DIR}
-      sudo find ${APP_DIR} -type d -exec chmod 750 {} \;
-      sudo find ${APP_DIR} -type f -exec chmod 640 {} \;
-      sudo chmod 650 ${APP_DIR}/server/index.js;
+      sudo chown -R $APP_USER:$APP_GROUP $APP_DIR
+      sudo find $APP_DIR -type d -exec chmod 750 {} \;
+      sudo find $APP_DIR -type f -exec chmod 640 {} \;
+      sudo chmod 650 $APP_DIR/server/index.js;
       
-      echo "${APP_USER_PASSWORD}" | su -c "cd ${APP_DIR}/server && npm run prod" ${APP_USER}
+      echo "$APP_USER_PASSWORD" | su -c "cd $APP_DIR/server && npm run prod" $APP_USER
     `,
     rootBlockDevice: {
       volumeSize: ebsVolumeSize,
