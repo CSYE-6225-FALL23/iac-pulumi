@@ -12,10 +12,17 @@ const serverPort = config.require("serverPort");
 
 const ec2KeyPair = config.require("ec2Keypair");
 const ec2InstanceType = config.require("ec2InstanceType");
-const ec2UserData = config.require("ec2UserData");
 
 const ebsVolumeSize = config.require("ebsVolumeSize");
 const ebsVolumeType = config.require("ebsVolumeType");
+
+const rdsDB = config.require("rdsDB");
+const rdsUser = config.require("rdsUser");
+const rdsPassword = config.require("rdsPassword");
+
+const appUser = config.require("appUser")
+const appPassword = config.require("appPassword")
+const appGroup = config.require("appGroup")
 
 var azs = [];
 
@@ -56,8 +63,8 @@ const getAmi = async () => {
         },
         {
           name: "state",
-          values: ["available"]
-        }
+          values: ["available"],
+        },
       ],
     });
     return ami;
@@ -176,25 +183,97 @@ const main = async () => {
           protocol: "tcp",
           fromPort: 443,
           toPort: 443,
-          cidrBlocks: ["0.0.0.0/0", "::/0"],
+          cidrBlocks: ["0.0.0.0/0"],
         },
         {
           protocol: "tcp",
           fromPort: 80,
           toPort: 80,
-          cidrBlocks: ["0.0.0.0/0", "::/0"],
+          cidrBlocks: ["0.0.0.0/0"],
         },
         {
           protocol: "tcp",
           fromPort: serverPort,
           toPort: serverPort,
-          cidrBlocks: ["0.0.0.0/0", "::/0"],
+          cidrBlocks: ["0.0.0.0/0"],
+        },
+        {
+          protocol: "tcp",
+          fromPort: serverPort,
+          toPort: serverPort,
+          ipv6CidrBlocks: ["::/0"],
         },
       ],
     },
   );
 
-  const userData = ec2UserData;
+  const dbSecurityGroup = new aws.ec2.SecurityGroup(
+    generateTags("db-sg").Name,
+    {
+      name: generateTags("db-sg").Name,
+      description:
+        "Allow access to the PostgreSQL database from the Web Server",
+      dependsOn: [ec2SecurityGroup],
+      vpcId: myVpc.id,
+      ingress: [
+        {
+          protocol: "tcp",
+          fromPort: 5432,
+          toPort: 5432,
+          securityGroups: [ec2SecurityGroup.id],
+        },
+      ],
+    },
+  );
+
+  const allowOutboundToDBRule = new aws.ec2.SecurityGroupRule(
+    "AllowOutboundToDB",
+    {
+      type: "egress",
+      fromPort: 5432,
+      toPort: 5432,
+      protocol: "tcp",
+      sourceSecurityGroupId: dbSecurityGroup.id,
+      securityGroupId: ec2SecurityGroup.id,
+    },
+  );
+
+  // const dbSubnetGroup = new aws.rds.SubnetGroup(
+  //   generateTags("db-pvt-sng").Name,
+  //   {
+  //     description: "Subnet group for the RDS instance",
+  //     subnetIds: [privateSubnets[0].id, privateSubnets[1].id],
+  //     name: generateTags("db-pvt-sng").Name,
+  //   },
+  // );
+
+  // const dbParameterGroup = new aws.rds.ParameterGroup(
+  //   generateTags("db-pg").Name,
+  //   {
+  //     name: generateTags("db-pg").Name,
+  //     family: "postgres15",
+  //   },
+  // );
+
+  // const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
+  //   identifier: generateTags("db").Name,
+  //   dbName: rdsDB,
+  //   allocatedStorage: 20,
+  //   instanceClass: "db.t3.micro",
+  //   parameterGroupName: dbParameterGroup.name,
+  //   engine: "postgres",
+  //   username: rdsUser,
+  //   password: rdsPassword,
+  //   dbSubnetGroupName: dbSubnetGroup.name,
+  //   publiclyAccessible: false,
+  //   multiAz: false,
+  //   availabilityZone: "us-east-1a",
+  //   vpcSecurityGroupIds: [dbSecurityGroup.id],
+  //   skipFinalSnapshot: true,
+  //   deleteAutomatedBackups: true,
+  //   deletionProtection: false,
+  //   tags: generateTags("db"),
+  // });
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
     ami: ami.id,
@@ -204,7 +283,45 @@ const main = async () => {
     disableApiTermination: false,
     vpcSecurityGroupIds: [ec2SecurityGroup.id],
     associatePublicIpAddress: true,
-    userData: userData,
+    userData: pulumi.interpolate`#!/bin/bash
+      #!/bin/bash
+
+      # Set your app-specific values
+      RDS_ENDPOINT=${dbInstance.endpoint}
+      RDS_DB=${rdsDB}
+      RDS_USER=${rdsUser}
+      RDS_PASSWORD=${rdsPassword}
+      SERVER_PORT=${serverPort}
+      APP_USER="${appUser}"
+      APP_USER_PASSWORD="${appPassword}
+      APP_GROUP=${appGroup}
+      APP_DIR="/var/www/webapp"
+      
+      # Create the destination directory and copy files
+      sudo mkdir -p /var/www/
+      sudo cp -rf /home/admin/webapp.zip /var/www/
+      
+      cd /var/www
+      sudo unzip -o webapp.zip -d ${APP_DIR}
+      
+      # Create the user
+      sudo useradd -m ${APP_USER}
+      sudo groupadd ${APP_GROUP}
+      
+      # Change user password
+      echo "${APP_USER}:${APP_USER_PASSWORD}" | sudo chpasswd
+      
+      # Add the user to the group
+      sudo usermod -aG ${APP_GROUP} ${APP_USER}
+      
+      # Set directory permissions
+      sudo chown -R ${APP_USER}:${APP_GROUP} ${APP_DIR}
+      sudo find ${APP_DIR} -type d -exec chmod 750 {} \;
+      sudo find ${APP_DIR} -type f -exec chmod 640 {} \;
+      sudo chmod 650 ${APP_DIR}/server/index.js;
+      
+      echo "${APP_USER_PASSWORD}" | su -c "cd ${APP_DIR}/server && npm run prod" ${APP_USER}
+    `,
     rootBlockDevice: {
       volumeSize: ebsVolumeSize,
       volumeType: ebsVolumeType,
@@ -220,12 +337,14 @@ const main = async () => {
     publicSubnetIds: publicSubnets.map((subnet) => subnet.id),
     privateSubnetIds: privateSubnets.map((subnet) => subnet.id),
     ec2InstanceIp: ec2Instance.publicIp,
-  }
+    dbEndpoint: dbInstance.endpoint,
+  };
 };
 
 const outputs = main();
-exports.vpc = outputs.then(obj => obj.vpcId);
-exports.internetGateway = outputs.then(obj => obj.internetGatewayId);
-exports.publicSubnets = outputs.then(obj => obj.publicSubnetIds);
-exports.privateSubnets = outputs.then(obj => obj.privateSubnetIds);
-exports.ec2Ip = outputs.then(obj => obj.ec2InstanceIp);
+exports.vpc = outputs.then((obj) => obj.vpcId);
+exports.internetGateway = outputs.then((obj) => obj.internetGatewayId);
+exports.publicSubnets = outputs.then((obj) => obj.publicSubnetIds);
+exports.privateSubnets = outputs.then((obj) => obj.privateSubnetIds);
+exports.ec2Ip = outputs.then((obj) => obj.ec2InstanceIp);
+// exports.dbEndpoint = outputs.then((obj) => obj.dbEndpoint);
