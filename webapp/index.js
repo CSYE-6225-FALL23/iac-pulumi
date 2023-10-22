@@ -287,7 +287,6 @@ const main = async () => {
       #!/bin/bash
 
       # Set your app-specific values
-      RDS_ENDPOINT=${dbInstance.endpoint}
       RDS_DB=${rdsDB}
       RDS_USER=${rdsUser}
       RDS_PASSWORD=${rdsPassword}
