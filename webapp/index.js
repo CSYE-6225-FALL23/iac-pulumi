@@ -327,9 +327,15 @@ echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> /var/www/webap
 echo $APP_USER_PASSWORD | su -c "echo POSTGRES_DB=$RDS_DB >> /var/www/webapp/server/.env.prod" $APP_USER
 echo $APP_USER_PASSWORD | su -c "echo POSTGRES_USER=$RDS_USER >> /var/www/webapp/server/.env.prod" $APP_USER
 echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> /var/www/webapp/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$RDS_ENDPOINT >> /var/www/webapp/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> /var/www/webapp/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> /var/www/webapp/server/.env.prod" $APP_USER
 
-echo $APP_USER_PASSWORD | su -c "cd \"$APP_DIR/server\" && npm run prod" $APP_USER
+sudo cp $APP_DIR/deployment/webapp.service /lib/systemd/system
+sudo chown csye6225:csye6225 /lib/systemd/system/webapp.service
+sudo chmod 550 /lib/systemd/system/webapp.service
+
+sudo systemctl enable webapp.service
+sudo systemctl start webapp.service
     `,
     rootBlockDevice: {
       volumeSize: ebsVolumeSize,
