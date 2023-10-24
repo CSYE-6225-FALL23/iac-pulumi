@@ -323,15 +323,15 @@ sudo chmod 650 $APP_DIR/server/index.js
 sudo chmod 660 $APP_DIR/server/.env.prod
 
 #Add env variables
-echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> /var/www/webapp/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_DB=$RDS_DB >> /var/www/webapp/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_USER=$RDS_USER >> /var/www/webapp/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> /var/www/webapp/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> /var/www/webapp/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> /var/www/webapp/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> $APP_DIR/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_DB=$RDS_DB >> $APP_DIR/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_USER=$RDS_USER >> $APP_DIR/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $APP_DIR/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $APP_DIR/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> $APP_DIR/server/.env.prod" $APP_USER
 
 sudo cp $APP_DIR/deployment/webapp.service /lib/systemd/system
-sudo chown csye6225:csye6225 /lib/systemd/system/webapp.service
+sudo chown $APP_USER:$APP_GROUP /lib/systemd/system/webapp.service
 sudo chmod 550 /lib/systemd/system/webapp.service
 
 sudo systemctl enable webapp.service
