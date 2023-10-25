@@ -6,12 +6,16 @@ AWS Infrastructure as code using pulumi for AWS
 
 - [IAC for webapp](#iac-webapp)
   - [Table of Contents](#table-of-contents)
+  - [Infrastructure Diagram](#infrastructure-diagram)
   - [Prerequisites](#prerequisites)
   - [Getting Started](#getting-started)
     - [Installation](#installation)
     - [Configuration](#configuration)
   - [Usage](#usage)
   - [License](#license)
+
+# Infrastructure Diagram
+![Infrastructure](https://github.com/dev-kudli/iac-pulumi/assets/53204171/65e51564-a456-42b6-a51f-ed50a1796fa2)
 
 ## Prerequisites
 
