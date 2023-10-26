@@ -334,6 +334,7 @@ sudo cp $APP_DIR/deployment/webapp.service /lib/systemd/system
 sudo chown $APP_USER:$APP_GROUP /lib/systemd/system/webapp.service
 sudo chmod 550 /lib/systemd/system/webapp.service
 
+sudo systemctl daemon reload
 sudo systemctl enable webapp.service
 sudo systemctl start webapp.service
     `,
