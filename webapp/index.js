@@ -255,28 +255,58 @@ const main = async () => {
     },
   );
 
-  const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
-    identifier: generateTags("db").Name,
-    dbName: rdsDB,
-    allocatedStorage: 20,
-    instanceClass: "db.t3.micro",
-    parameterGroupName: dbParameterGroup.name,
-    engine: "postgres",
-    username: rdsUser,
-    password: rdsPassword,
-    dbSubnetGroupName: dbSubnetGroup.name,
-    publiclyAccessible: false,
-    multiAz: false,
-    availabilityZone: "us-east-1a",
-    vpcSecurityGroupIds: [dbSecurityGroup.id],
-    skipFinalSnapshot: true,
-    deleteAutomatedBackups: true,
-    deletionProtection: false,
-    tags: generateTags("db"),
+  // const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
+  //   identifier: generateTags("db").Name,
+  //   dbName: rdsDB,
+  //   allocatedStorage: 20,
+  //   instanceClass: "db.t3.micro",
+  //   parameterGroupName: dbParameterGroup.name,
+  //   engine: "postgres",
+  //   username: rdsUser,
+  //   password: rdsPassword,
+  //   dbSubnetGroupName: dbSubnetGroup.name,
+  //   publiclyAccessible: false,
+  //   multiAz: false,
+  //   availabilityZone: "us-east-1a",
+  //   vpcSecurityGroupIds: [dbSecurityGroup.id],
+  //   skipFinalSnapshot: true,
+  //   deleteAutomatedBackups: true,
+  //   deletionProtection: false,
+  //   tags: generateTags("db"),
+  // });
+
+  const ec2Role = new aws.iam.Role("WebappEC2Role", {
+    name: "WebappEC2Role",
+    assumeRolePolicy: JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: "sts:AssumeRole",
+          Effect: "Allow",
+          Principal: {
+            Service: "ec2.amazonaws.com",
+          },
+        },
+      ],
+    }),
+  });
+
+  const cloudWatchPolicy = new aws.iam.PolicyAttachment(
+    "CloudWatchAgentPolicyAttachment",
+    {
+      policyArn: "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+      roles: [ec2Role.name],
+    },
+  );
+
+  const instanceProfile = new aws.iam.InstanceProfile("WebappInstanceProfile", {
+    name: "MyInstanceProfile",
+    role: ec2Role.name,
   });
 
   const ec2Instance = new aws.ec2.Instance(generateTags("ec2").Name, {
     ami: ami.id,
+    iamInstanceProfile: instanceProfile.name,
     instanceType: ec2InstanceType,
     keyName: ec2KeyPair,
     subnetId: publicSubnets[0].id,
@@ -295,13 +325,6 @@ APP_USER=${appUser}
 APP_USER_PASSWORD=${appPassword}
 APP_GROUP=${appGroup}
 APP_DIR="/var/www/webapp"
-
-# Create the destination directory and copy files
-sudo mkdir -p /var/www/
-sudo cp -rf /home/admin/webapp.zip /var/www/
-
-cd /var/www
-sudo unzip -o webapp.zip -d $APP_DIR
 
 # Create the user
 sudo useradd -m $APP_USER
@@ -330,10 +353,19 @@ echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $APP_DI
 echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $APP_DIR/server/.env.prod" $APP_USER
 echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> $APP_DIR/server/.env.prod" $APP_USER
 
-sudo cp $APP_DIR/deployment/webapp.service /lib/systemd/system
+# Permission for systemd file
 sudo chown $APP_USER:$APP_GROUP /lib/systemd/system/webapp.service
 sudo chmod 550 /lib/systemd/system/webapp.service
 
+# Permission for log file
+sudo touch /var/log/webapp.log
+sudo chown $APP_USER:$APP_GROUP /var/log/webapp.log
+sudo chmod 550 /var/log/webapp.log
+
+# Start cloudwatch service
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
+
+# Start systemd service
 sudo systemctl daemon reload
 sudo systemctl enable webapp.service
 sudo systemctl start webapp.service
