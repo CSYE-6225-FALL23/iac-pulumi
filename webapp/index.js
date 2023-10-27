@@ -255,25 +255,25 @@ const main = async () => {
     },
   );
 
-  // const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
-  //   identifier: generateTags("db").Name,
-  //   dbName: rdsDB,
-  //   allocatedStorage: 20,
-  //   instanceClass: "db.t3.micro",
-  //   parameterGroupName: dbParameterGroup.name,
-  //   engine: "postgres",
-  //   username: rdsUser,
-  //   password: rdsPassword,
-  //   dbSubnetGroupName: dbSubnetGroup.name,
-  //   publiclyAccessible: false,
-  //   multiAz: false,
-  //   availabilityZone: "us-east-1a",
-  //   vpcSecurityGroupIds: [dbSecurityGroup.id],
-  //   skipFinalSnapshot: true,
-  //   deleteAutomatedBackups: true,
-  //   deletionProtection: false,
-  //   tags: generateTags("db"),
-  // });
+  const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
+    identifier: generateTags("db").Name,
+    dbName: rdsDB,
+    allocatedStorage: 20,
+    instanceClass: "db.t3.micro",
+    parameterGroupName: dbParameterGroup.name,
+    engine: "postgres",
+    username: rdsUser,
+    password: rdsPassword,
+    dbSubnetGroupName: dbSubnetGroup.name,
+    publiclyAccessible: false,
+    multiAz: false,
+    availabilityZone: "us-east-1a",
+    vpcSecurityGroupIds: [dbSecurityGroup.id],
+    skipFinalSnapshot: true,
+    deleteAutomatedBackups: true,
+    deletionProtection: false,
+    tags: generateTags("db"),
+  });
 
   const ec2Role = new aws.iam.Role("WebappEC2Role", {
     name: "WebappEC2Role",
@@ -325,6 +325,7 @@ APP_USER=${appUser}
 APP_USER_PASSWORD=${appPassword}
 APP_GROUP=${appGroup}
 APP_DIR="/var/www/webapp"
+ENV_DIR="/opt/.env.prod"
 
 # Create the user
 sudo useradd -m $APP_USER
@@ -336,22 +337,23 @@ echo "$APP_USER:$APP_USER_PASSWORD" | sudo chpasswd
 # Add the user to the group
 sudo usermod -aG $APP_GROUP $APP_USER
 
-sudo touch "$APP_DIR/server/.env.prod"
-
-# Set directory permissions
+# Change directory owner and permissions
 sudo chown -R $APP_USER:$APP_GROUP $APP_DIR
 sudo find $APP_DIR -type d -exec chmod 750 {} \\;
 sudo find $APP_DIR -type f -exec chmod 640 {} \\;
 sudo chmod 650 $APP_DIR/server/index.js
-sudo chmod 660 $APP_DIR/server/.env.prod
+
+# Change ENV owner and permissions
+sudo chown -R $APP_USER:$APP_GROUP $ENV_DIR
+sudo chmod 660 $ENV_DIR
 
 #Add env variables
-echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> $APP_DIR/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_DB=$RDS_DB >> $APP_DIR/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_USER=$RDS_USER >> $APP_DIR/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $APP_DIR/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $APP_DIR/server/.env.prod" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> $APP_DIR/server/.env.prod" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> $ENV_DIR" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_DB=$RDS_DB >> $ENV_DIR" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_USER=$RDS_USER >> $ENV_DIR" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $ENV_DIR" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $ENV_DIR" $APP_USER
+echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> $ENV_DIR" $APP_USER
 
 # Permission for systemd file
 sudo chown $APP_USER:$APP_GROUP /lib/systemd/system/webapp.service
@@ -360,7 +362,7 @@ sudo chmod 550 /lib/systemd/system/webapp.service
 # Permission for log file
 sudo touch /var/log/webapp.log
 sudo chown $APP_USER:$APP_GROUP /var/log/webapp.log
-sudo chmod 550 /var/log/webapp.log
+sudo chmod 660 /var/log/webapp.log
 
 # Start cloudwatch service
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
