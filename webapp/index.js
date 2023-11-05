@@ -380,6 +380,16 @@ sudo systemctl start webapp.service
     tags: generateTags("ec2"),
   });
 
+//   const ec2InstanceId = aws.ec2.getInstance({ instanceId: generateTags("ec2").Name });
+//   const ec2InstanceIpAddress = ec2InstanceId.then(instance => instance.publicIp);
+//   const aRecord = new aws.route53.Record("myARecord", {
+//     zoneId: hostedZone.id,
+//     name: "demo.skudli.xyz",
+//     type: "A",
+//     ttl: 300,
+//     records: [ec2InstanceIpAddress],
+// });
+
   // Export the VPC ID and other resources if needed.
   return {
     vpcId: myVpc.id,
