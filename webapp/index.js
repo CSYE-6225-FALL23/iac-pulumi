@@ -24,6 +24,8 @@ const appUser = config.require("appUser");
 const appPassword = config.require("appPassword");
 const appGroup = config.require("appGroup");
 
+const hostedZoneDNS = config.require("hostedZone");
+
 var azs = [];
 
 /**
@@ -238,6 +240,18 @@ const main = async () => {
     },
   );
 
+  const allowOutboundToCloudwatchRule = new aws.ec2.SecurityGroupRule(
+    "AllowOutboundToCloudwatch",
+    {
+      type: "egress",
+      fromPort: 443,
+      toPort: 443,
+      protocol: "tcp",
+      cidrBlocks: ["0.0.0.0/0"],
+      securityGroupId: ec2SecurityGroup.id,
+    },
+  );
+
   const dbSubnetGroup = new aws.rds.SubnetGroup(
     generateTags("db-pvt-sng").Name,
     {
@@ -380,15 +394,18 @@ sudo systemctl start webapp.service
     tags: generateTags("ec2"),
   });
 
-//   const ec2InstanceId = aws.ec2.getInstance({ instanceId: generateTags("ec2").Name });
-//   const ec2InstanceIpAddress = ec2InstanceId.then(instance => instance.publicIp);
-//   const aRecord = new aws.route53.Record("myARecord", {
-//     zoneId: hostedZone.id,
-//     name: "demo.skudli.xyz",
-//     type: "A",
-//     ttl: 300,
-//     records: [ec2InstanceIpAddress],
-// });
+  const hostedZone = aws.route53.getZone({
+    name: hostedZoneDNS,
+  });
+
+  const aRecord = new aws.route53.Record("myARecord", {
+    zoneId: hostedZone.then(zone => zone.id),
+    name: hostedZoneDNS,
+    type: "A",
+    ttl: 300,
+    records: [ec2Instance.publicIp],
+    allowOverwrite: true
+  });
 
   // Export the VPC ID and other resources if needed.
   return {
