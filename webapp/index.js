@@ -353,27 +353,7 @@ APP_GROUP=${appGroup}
 APP_DIR="/var/www/webapp"
 ENV_DIR="/opt/.env.prod"
 
-# Create the user
-sudo useradd -m $APP_USER
-sudo groupadd $APP_GROUP
-
-# Change user password
-echo "$APP_USER:$APP_USER_PASSWORD" | sudo chpasswd
-
-# Add the user to the group
-sudo usermod -aG $APP_GROUP $APP_USER
-
-# Change directory owner and permissions
-sudo chown -R $APP_USER:$APP_GROUP $APP_DIR
-sudo find $APP_DIR -type d -exec chmod 750 {} \\;
-sudo find $APP_DIR -type f -exec chmod 640 {} \\;
-sudo chmod 650 $APP_DIR/server/index.js
-
-# Change ENV owner and permissions
-sudo chown -R $APP_USER:$APP_GROUP $ENV_DIR
-sudo chmod 660 $ENV_DIR
-
-#Add env variables
+# Add ENV variables
 echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> $ENV_DIR" $APP_USER
 echo $APP_USER_PASSWORD | su -c "echo POSTGRES_DB=$RDS_DB >> $ENV_DIR" $APP_USER
 echo $APP_USER_PASSWORD | su -c "echo POSTGRES_USER=$RDS_USER >> $ENV_DIR" $APP_USER
@@ -381,22 +361,11 @@ echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $ENV_DI
 echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $ENV_DIR" $APP_USER
 echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> $ENV_DIR" $APP_USER
 
-# Permission for systemd file
-sudo chown $APP_USER:$APP_GROUP /lib/systemd/system/webapp.service
-sudo chmod 550 /lib/systemd/system/webapp.service
-
-# Permission for log file
-sudo touch /var/log/webapp.log
-sudo chown $APP_USER:$APP_GROUP /var/log/webapp.log
-sudo chmod 660 /var/log/webapp.log
-
 # Start cloudwatch service
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
 
-# Start systemd service
-sudo systemctl daemon reload
-sudo systemctl enable webapp.service
-sudo systemctl start webapp.service
+# Restart systemd service
+sudo systemctl restart webapp.service
     `,
     rootBlockDevice: {
       volumeSize: ebsVolumeSize,
