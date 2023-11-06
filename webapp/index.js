@@ -252,6 +252,18 @@ const main = async () => {
     },
   );
 
+  const allowOutboundToStatsdhRule = new aws.ec2.SecurityGroupRule(
+    "AllowOutboundToCloudwatch",
+    {
+      type: "egress",
+      fromPort: 8125,
+      toPort: 8125,
+      protocol: "udp",
+      cidrBlocks: ["0.0.0.0/0"],
+      securityGroupId: ec2SecurityGroup.id,
+    },
+  );
+
   const dbSubnetGroup = new aws.rds.SubnetGroup(
     generateTags("db-pvt-sng").Name,
     {
