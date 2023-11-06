@@ -253,7 +253,7 @@ const main = async () => {
   );
 
   const allowOutboundToStatsdhRule = new aws.ec2.SecurityGroupRule(
-    "AllowOutboundToCloudwatch",
+    "AllowOutboundToStatsd",
     {
       type: "egress",
       fromPort: 8125,
@@ -352,6 +352,11 @@ APP_USER_PASSWORD=${appPassword}
 APP_GROUP=${appGroup}
 APP_DIR="/var/www/webapp"
 ENV_DIR="/opt/.env.prod"
+
+# Change ENV owner and permissions
+sudo touch $ENV_DIR
+sudo chown $APP_USER:$APP_GROUP $ENV_DIR
+sudo chmod 660 $ENV_DIR
 
 # Add ENV variables
 echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> $ENV_DIR" $APP_USER
