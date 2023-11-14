@@ -226,36 +226,36 @@ const main = async () => {
     },
   );
 
-  // const dbSecurityGroup = new aws.ec2.SecurityGroup(
-  //   generateTags("db-sg").Name,
-  //   {
-  //     name: generateTags("db-sg").Name,
-  //     description:
-  //       "Allow access to the PostgreSQL database from the Web Server",
-  //     dependsOn: [ec2SecurityGroup],
-  //     vpcId: myVpc.id,
-  //     ingress: [
-  //       {
-  //         protocol: "tcp",
-  //         fromPort: 5432,
-  //         toPort: 5432,
-  //         securityGroups: [ec2SecurityGroup.id],
-  //       },
-  //     ],
-  //   },
-  // );
+  const dbSecurityGroup = new aws.ec2.SecurityGroup(
+    generateTags("db-sg").Name,
+    {
+      name: generateTags("db-sg").Name,
+      description:
+        "Allow access to the PostgreSQL database from the Web Server",
+      dependsOn: [ec2SecurityGroup],
+      vpcId: myVpc.id,
+      ingress: [
+        {
+          protocol: "tcp",
+          fromPort: 5432,
+          toPort: 5432,
+          securityGroups: [ec2SecurityGroup.id],
+        },
+      ],
+    },
+  );
 
-  // const allowOutboundToDBRule = new aws.ec2.SecurityGroupRule(
-  //   "AllowOutboundToDB",
-  //   {
-  //     type: "egress",
-  //     fromPort: 5432,
-  //     toPort: 5432,
-  //     protocol: "tcp",
-  //     sourceSecurityGroupId: dbSecurityGroup.id,
-  //     securityGroupId: ec2SecurityGroup.id,
-  //   },
-  // );
+  const allowOutboundToDBRule = new aws.ec2.SecurityGroupRule(
+    "AllowOutboundToDB",
+    {
+      type: "egress",
+      fromPort: 5432,
+      toPort: 5432,
+      protocol: "tcp",
+      sourceSecurityGroupId: dbSecurityGroup.id,
+      securityGroupId: ec2SecurityGroup.id,
+    },
+  );
 
   const allowOutboundToCloudwatchRule = new aws.ec2.SecurityGroupRule(
     "AllowOutboundToCloudwatch",
@@ -281,42 +281,42 @@ const main = async () => {
     },
   );
 
-  // const dbSubnetGroup = new aws.rds.SubnetGroup(
-  //   generateTags("db-pvt-sng").Name,
-  //   {
-  //     description: "Subnet group for the RDS instance",
-  //     subnetIds: [privateSubnets[0].id, privateSubnets[1].id],
-  //     name: generateTags("db-pvt-sng").Name,
-  //   },
-  // );
+  const dbSubnetGroup = new aws.rds.SubnetGroup(
+    generateTags("db-pvt-sng").Name,
+    {
+      description: "Subnet group for the RDS instance",
+      subnetIds: [privateSubnets[0].id, privateSubnets[1].id],
+      name: generateTags("db-pvt-sng").Name,
+    },
+  );
 
-  // const dbParameterGroup = new aws.rds.ParameterGroup(
-  //   generateTags("db-pg").Name,
-  //   {
-  //     name: generateTags("db-pg").Name,
-  //     family: "postgres15",
-  //   },
-  // );
+  const dbParameterGroup = new aws.rds.ParameterGroup(
+    generateTags("db-pg").Name,
+    {
+      name: generateTags("db-pg").Name,
+      family: "postgres15",
+    },
+  );
 
-  // const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
-  //   identifier: generateTags("db").Name,
-  //   dbName: rdsDB,
-  //   allocatedStorage: 20,
-  //   instanceClass: "db.t3.micro",
-  //   parameterGroupName: dbParameterGroup.name,
-  //   engine: "postgres",
-  //   username: rdsUser,
-  //   password: rdsPassword,
-  //   dbSubnetGroupName: dbSubnetGroup.name,
-  //   publiclyAccessible: false,
-  //   multiAz: false,
-  //   availabilityZone: "us-east-1a",
-  //   vpcSecurityGroupIds: [dbSecurityGroup.id],
-  //   skipFinalSnapshot: true,
-  //   deleteAutomatedBackups: true,
-  //   deletionProtection: false,
-  //   tags: generateTags("db"),
-  // });
+  const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
+    identifier: generateTags("db").Name,
+    dbName: rdsDB,
+    allocatedStorage: 20,
+    instanceClass: "db.t3.micro",
+    parameterGroupName: dbParameterGroup.name,
+    engine: "postgres",
+    username: rdsUser,
+    password: rdsPassword,
+    dbSubnetGroupName: dbSubnetGroup.name,
+    publiclyAccessible: false,
+    multiAz: false,
+    availabilityZone: "us-east-1a",
+    vpcSecurityGroupIds: [dbSecurityGroup.id],
+    skipFinalSnapshot: true,
+    deleteAutomatedBackups: true,
+    deletionProtection: false,
+    tags: generateTags("db"),
+  });
 
   const ec2Role = new aws.iam.Role("WebappEC2Role", {
     name: "WebappEC2Role",
@@ -350,6 +350,7 @@ const main = async () => {
   const userdata = `#!/bin/bash
 
 # Set your app-specific values
+RDS_ENDPOINT=${dbInstance.endpoint}
 RDS_DB=${rdsDB}
 RDS_USER=${rdsUser}
 RDS_PASSWORD=${rdsPassword}
@@ -440,7 +441,7 @@ sudo systemctl restart webapp.service`
   const autoScalingGroup = new aws.autoscaling.Group("MyAutoScalingGroup", {
     maxSize: 3,
     minSize: 1,
-    desiredCapacity: 1,
+    desiredCapacity: 2,
     vpcZoneIdentifiers: [publicSubnets[0].id, publicSubnets[1].id],
     launchTemplate: {
         id: launchTemplate.id,
@@ -458,18 +459,64 @@ sudo systemctl restart webapp.service`
     name: hostedZoneDNS,
   });
 
-  // const aRecord = new aws.route53.Record("myARecord", {
-  //   zoneId: hostedZone.then(zone => zone.id),
-  //   name: hostedZoneDNS,
-  //   type: "A",
-  //   aliases: [{
-  //     ttl: 300,
-  //     evaluateTargetHealth: true,
-  //     name: alb.dnsName,
-  //     zoneId: alb.zoneId,
-  //   }],
-  //   allowOverwrite: true
-  // });
+  const aRecord = new aws.route53.Record("myARecord", {
+    zoneId: hostedZone.then(zone => zone.id),
+    name: hostedZoneDNS,
+    type: "A",
+    aliases: [{
+      evaluateTargetHealth: true,
+      name: alb.dnsName,
+      zoneId: alb.zoneId,
+    }],
+  });
+
+  // Create Step Scaling Policy for scaling in
+  const scaleDownPolicy = new aws.autoscaling.Policy('myScaleInPolicy', {
+    adjustmentType: 'ChangeInCapacity',
+    cooldown: 60,
+    autoscalingGroupName: autoScalingGroup.name,
+    scalingAdjustment: -1, // Decrease capacity by 1.
+  });
+
+  // Create Step Scaling Policy for scaling in
+  const scaleUpPolicy = new aws.autoscaling.Policy('myScaleUpPolicy', {
+    adjustmentType: 'ChangeInCapacity',
+    cooldown: 60,
+    autoscalingGroupName: autoScalingGroup.name,
+    scalingAdjustment: 1, // Decrease capacity by 1.
+  });
+
+  const scaleDownAlarm = new aws.cloudwatch.MetricAlarm('myScaleDownAlarm', {
+    alarmDescription: 'Scale down when CPU utilization is below 3%',
+    alarmName: 'ScaleDownAlarm',
+    comparisonOperator: 'LessThanOrEqualToThreshold',
+    evaluationPeriods: 1,
+    metricName: 'CPUUtilization', // Replace with the actual metric name.
+    namespace: 'AWS/EC2', // Replace with the appropriate namespace.
+    period: 60, // 1-minute intervals.
+    statistic: 'Average', // Use 'Average' to calculate CPU utilization.
+    threshold: 3, // Threshold for scaling down.
+    alarmActions: [scaleDownPolicy.arn], // Associate both policies with the alarm
+    dimensions: {
+      AutoScalingGroupName: autoScalingGroup.name,
+    },
+  });
+
+  const scaleUpAlarm = new aws.cloudwatch.MetricAlarm('myScaleUpAlarm', {
+    alarmDescription: 'Scale down when CPU utilization is below 3%',
+    alarmName: 'ScaleDownAlarm',
+    comparisonOperator: 'GreaterThanOrEqualToThreshold',
+    evaluationPeriods: 1,
+    metricName: 'CPUUtilization', // Replace with the actual metric name.
+    namespace: 'AWS/EC2', // Replace with the appropriate namespace.
+    period: 60, // 1-minute intervals.
+    statistic: 'Average', // Use 'Average' to calculate CPU utilization.
+    threshold: 4, // Threshold for scaling down.
+    alarmActions: [scaleUpPolicy.arn], // Associate both policies with the alarm
+    dimensions: {
+      AutoScalingGroupName: autoScalingGroup.name,
+    },
+  });
 
   // Export the VPC ID and other resources if needed.
   return {
@@ -477,8 +524,8 @@ sudo systemctl restart webapp.service`
     internetGatewayId: myInternetGateway.id,
     publicSubnetIds: publicSubnets.map((subnet) => subnet.id),
     privateSubnetIds: privateSubnets.map((subnet) => subnet.id),
-    // ec2InstanceIp: ec2Instance.publicIp,
-    // dbEndpoint: dbInstance.endpoint,
+    ec2InstanceIp: ec2Instance.publicIp,
+    dbEndpoint: dbInstance.endpoint,
   };
 };
 
@@ -487,5 +534,5 @@ exports.vpc = outputs.then((obj) => obj.vpcId);
 exports.internetGateway = outputs.then((obj) => obj.internetGatewayId);
 exports.publicSubnets = outputs.then((obj) => obj.publicSubnetIds);
 exports.privateSubnets = outputs.then((obj) => obj.privateSubnetIds);
-// exports.ec2Ip = outputs.then((obj) => obj.ec2InstanceIp);
-// exports.dbEndpoint = outputs.then((obj) => obj.dbEndpoint);
+exports.ec2Ip = outputs.then((obj) => obj.ec2InstanceIp);
+exports.dbEndpoint = outputs.then((obj) => obj.dbEndpoint);
