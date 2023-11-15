@@ -385,8 +385,8 @@ sudo systemctl restart webapp.service
   });
 
   // Define your launch template
-  const launchTemplate = new aws.ec2.LaunchTemplate("MyLaunchTemplate", {
-    name: generateTags("ec2").Name,
+  const launchTemplate = new aws.ec2.LaunchTemplate("launch-template", {
+    name: generateTags("lt").Name,
     instanceType: ec2InstanceType,
     imageId: ami.id,
     iamInstanceProfile: {
@@ -415,7 +415,7 @@ sudo systemctl restart webapp.service
   });
 
   // Define a target group
-  const targetGroup = new aws.lb.TargetGroup("MyTargetGroup", {
+  const targetGroup = new aws.lb.TargetGroup("tg", {
     port: serverPort,
     protocol: "HTTP",
     vpcId: myVpc.id,
@@ -433,7 +433,7 @@ sudo systemctl restart webapp.service
   });
 
   // Create a listener for the Application Load Balancer to route traffic
-  const listener = new aws.lb.Listener("MyListener", {
+  const listener = new aws.lb.Listener("listener", {
     loadBalancerArn: alb.arn,
     port: 80,
     defaultActions: [{
@@ -443,7 +443,7 @@ sudo systemctl restart webapp.service
   });
 
   // Create an Auto Scaling Group
-  const autoScalingGroup = new aws.autoscaling.Group("MyAutoScalingGroup", {
+  const autoScalingGroup = new aws.autoscaling.Group("asg", {
     maxSize: 3,
     minSize: 1,
     desiredCapacity: 1,
@@ -452,20 +452,26 @@ sudo systemctl restart webapp.service
         id: launchTemplate.id,
         version: "$Latest", // or specify a specific version
     },
-    targetGroupArns: [targetGroup.arn]
+    targetGroupArns: [targetGroup.arn],
+    cooldown: 60,
+    tags: [{
+      key: "Name", 
+      value: generateTags("ec2").Name,
+      propagateAtLaunch: true,
+    }],
   });
 
   // Register the target group with the Auto Scaling Group
   const attachment = new aws.autoscaling.Attachment("asg-attachment", {
     lbTargetGroupArn: targetGroup.arn,
-    autoscalingGroupName: autoScalingGroup.id,
+    autoscalingGroupName: autoScalingGroup.name,
   });
 
   const hostedZone = aws.route53.getZone({
     name: hostedZoneDNS,
   });
 
-  const aRecord = new aws.route53.Record("myARecord", {
+  const aRecord = new aws.route53.Record("dns-alias", {
     zoneId: hostedZone.then(zone => zone.id),
     name: hostedZoneDNS,
     type: "A",
@@ -477,48 +483,48 @@ sudo systemctl restart webapp.service
   });
 
   // Create Step Scaling Policy for scaling in
-  const scaleDownPolicy = new aws.autoscaling.Policy('myScaleInPolicy', {
+  const scaleDownPolicy = new aws.autoscaling.Policy('scaledown-policy', {
     adjustmentType: 'ChangeInCapacity',
     cooldown: 60,
     autoscalingGroupName: autoScalingGroup.name,
-    scalingAdjustment: -1, // Decrease capacity by 1.
+    scalingAdjustment: -1,
   });
 
   // Create Step Scaling Policy for scaling in
-  const scaleUpPolicy = new aws.autoscaling.Policy('myScaleUpPolicy', {
+  const scaleUpPolicy = new aws.autoscaling.Policy('scaleup-policy', {
     adjustmentType: 'ChangeInCapacity',
     cooldown: 60,
     autoscalingGroupName: autoScalingGroup.name,
-    scalingAdjustment: 1, // Decrease capacity by 1.
+    scalingAdjustment: 1,
   });
 
-  const scaleDownAlarm = new aws.cloudwatch.MetricAlarm('myScaleDownAlarm', {
+  const scaleDownAlarm = new aws.cloudwatch.MetricAlarm('scaledown-alarm', {
     alarmDescription: 'Scale down when CPU utilization is below 3%',
     alarmName: 'ScaleDownAlarm',
     comparisonOperator: 'LessThanOrEqualToThreshold',
     evaluationPeriods: 1,
-    metricName: 'CPUUtilization', // Replace with the actual metric name.
-    namespace: 'AWS/EC2', // Replace with the appropriate namespace.
-    period: 60, // 1-minute intervals.
-    statistic: 'Average', // Use 'Average' to calculate CPU utilization.
-    threshold: 3, // Threshold for scaling down.
-    alarmActions: [scaleDownPolicy.arn], // Associate both policies with the alarm
+    metricName: 'CPUUtilization',
+    namespace: 'AWS/EC2',
+    period: 60,
+    statistic: 'Average',
+    threshold: 3,
+    alarmActions: [scaleDownPolicy.arn],
     dimensions: {
       AutoScalingGroupName: autoScalingGroup.name,
     },
   });
 
-  const scaleUpAlarm = new aws.cloudwatch.MetricAlarm('myScaleUpAlarm', {
-    alarmDescription: 'Scale down when CPU utilization is below 3%',
-    alarmName: 'ScaleDownAlarm',
+  const scaleUpAlarm = new aws.cloudwatch.MetricAlarm('scaleup-alarm', {
+    alarmDescription: 'Scale up when CPU utilization is below 3%',
+    alarmName: 'ScaleUpAlarm',
     comparisonOperator: 'GreaterThanOrEqualToThreshold',
     evaluationPeriods: 1,
-    metricName: 'CPUUtilization', // Replace with the actual metric name.
-    namespace: 'AWS/EC2', // Replace with the appropriate namespace.
-    period: 60, // 1-minute intervals.
-    statistic: 'Average', // Use 'Average' to calculate CPU utilization.
-    threshold: 4, // Threshold for scaling down.
-    alarmActions: [scaleUpPolicy.arn], // Associate both policies with the alarm
+    metricName: 'CPUUtilization',
+    namespace: 'AWS/EC2',
+    period: 60,
+    statistic: 'Average',
+    threshold: 5,
+    alarmActions: [scaleUpPolicy.arn],
     dimensions: {
       AutoScalingGroupName: autoScalingGroup.name,
     },
