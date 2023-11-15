@@ -215,7 +215,7 @@ const main = async () => {
   );
 
   const allowOutboundToEC2Rule = new aws.ec2.SecurityGroupRule(
-    "AllowOutboundToDB",
+    "AllowOutboundToEC2",
     {
       type: "egress",
       fromPort: serverPort,
@@ -347,10 +347,12 @@ const main = async () => {
     role: ec2Role.name,
   });
 
-  const userdata = `#!/bin/bash
-
+  const userdata = pulumi.all([
+    dbInstance.endpoint,
+  ]).apply(([endpoint]) => {
+    return `#!/bin/bash
 # Set your app-specific values
-RDS_ENDPOINT=${dbInstance.endpoint}
+RDS_ENDPOINT=${endpoint}
 RDS_DB=${rdsDB}
 RDS_USER=${rdsUser}
 RDS_PASSWORD=${rdsPassword}
@@ -367,23 +369,24 @@ sudo chown $APP_USER:$APP_GROUP $ENV_DIR
 sudo chmod 660 $ENV_DIR
 
 # Add ENV variables
-echo $APP_USER_PASSWORD | su -c "echo SERVER_PORT=$SERVER_PORT >> $ENV_DIR" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_DB=$RDS_DB >> $ENV_DIR" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_USER=$RDS_USER >> $ENV_DIR" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $ENV_DIR" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $ENV_DIR" $APP_USER
-echo $APP_USER_PASSWORD | su -c "echo FILEPATH=$APP_DIR/deployment/user.csv >> $ENV_DIR" $APP_USER
+sudo echo SERVER_PORT=$SERVER_PORT >> $ENV_DIR
+sudo echo POSTGRES_DB=$RDS_DB >> $ENV_DIR
+sudo echo POSTGRES_USER=$RDS_USER >> $ENV_DIR
+sudo echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $ENV_DIR
+sudo echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $ENV_DIR
+sudo echo FILEPATH=$APP_DIR/deployment/user.csv >> $ENV_DIR
 
 # Start cloudwatch service
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
 
 # Restart systemd service
-sudo systemctl restart webapp.service`
-
-  const encodedUserdata = Buffer.from(userdata).toString('base64');
+sudo systemctl restart webapp.service
+    `;
+  });
 
   // Define your launch template
   const launchTemplate = new aws.ec2.LaunchTemplate("MyLaunchTemplate", {
+    name: generateTags("ec2").Name,
     instanceType: ec2InstanceType,
     imageId: ami.id,
     iamInstanceProfile: {
@@ -394,7 +397,7 @@ sudo systemctl restart webapp.service`
     disableApiTermination: false,
     vpcSecurityGroupIds: [ec2SecurityGroup.id],
     associatePublicIpAddress: true,
-    userData: pulumi.interpolate`${encodedUserdata}`,
+    userData: pulumi.interpolate`${userdata.apply(script => Buffer.from(script).toString('base64'))}`,
     rootBlockDevice: {
       volumeSize: ebsVolumeSize,
       volumeType: ebsVolumeType,
@@ -404,9 +407,11 @@ sudo systemctl restart webapp.service`
 
   // Create an Application Load Balancer
   const alb = new aws.lb.LoadBalancer(generateTags("alb").Name, {
+    loadBalancerType: "application",
     securityGroups: [elbSecurityGroup.id],
-    subnets: [publicSubnets[0].id, publicSubnets[1].id], // Replace with your subnet IDs
+    subnets: publicSubnets.map(subnet => (subnet.id)),
     enableDeletionProtection: false,
+    tags: generateTags("alb")
   });
 
   // Define a target group
@@ -441,18 +446,19 @@ sudo systemctl restart webapp.service`
   const autoScalingGroup = new aws.autoscaling.Group("MyAutoScalingGroup", {
     maxSize: 3,
     minSize: 1,
-    desiredCapacity: 2,
+    desiredCapacity: 1,
     vpcZoneIdentifiers: [publicSubnets[0].id, publicSubnets[1].id],
     launchTemplate: {
         id: launchTemplate.id,
         version: "$Latest", // or specify a specific version
     },
+    targetGroupArns: [targetGroup.arn]
   });
 
   // Register the target group with the Auto Scaling Group
   const attachment = new aws.autoscaling.Attachment("asg-attachment", {
-    albTargetGroupArn: targetGroup.arn,
-    autoscalingGroupName: autoScalingGroup.name,
+    lbTargetGroupArn: targetGroup.arn,
+    autoscalingGroupName: autoScalingGroup.id,
   });
 
   const hostedZone = aws.route53.getZone({
@@ -524,7 +530,6 @@ sudo systemctl restart webapp.service`
     internetGatewayId: myInternetGateway.id,
     publicSubnetIds: publicSubnets.map((subnet) => subnet.id),
     privateSubnetIds: privateSubnets.map((subnet) => subnet.id),
-    ec2InstanceIp: ec2Instance.publicIp,
     dbEndpoint: dbInstance.endpoint,
   };
 };
@@ -534,5 +539,4 @@ exports.vpc = outputs.then((obj) => obj.vpcId);
 exports.internetGateway = outputs.then((obj) => obj.internetGatewayId);
 exports.publicSubnets = outputs.then((obj) => obj.publicSubnetIds);
 exports.privateSubnets = outputs.then((obj) => obj.privateSubnetIds);
-exports.ec2Ip = outputs.then((obj) => obj.ec2InstanceIp);
 exports.dbEndpoint = outputs.then((obj) => obj.dbEndpoint);
