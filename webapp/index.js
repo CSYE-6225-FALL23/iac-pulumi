@@ -1,9 +1,17 @@
+const fs = require("fs");
+
 const pulumi = require("@pulumi/pulumi");
 const aws = require("@pulumi/aws");
+
+const gcp = require("@pulumi/gcp");
 
 const config = new pulumi.Config();
 
 // Import variables.
+const region = new pulumi.Config("aws").require("region");
+const zone = new pulumi.Config("gcp").require("zone");
+const gcpProject = new pulumi.Config("gcp").require("project");
+
 const project = config.require("project");
 const vpcCidrBlock = config.require("vpcCidrBlock");
 const maxAllowedAzs = config.require("maxAllowedAzs");
@@ -25,6 +33,10 @@ const appPassword = config.require("appPassword");
 const appGroup = config.require("appGroup");
 
 const hostedZoneDNS = config.require("hostedZone");
+
+const accessKeys = config.require("accessKeys");
+const dynamodbTableName = config.require("dynamodbTableName");
+const emailApiKey = config.require("emailApiKey");
 
 var azs = [];
 
@@ -318,6 +330,11 @@ const main = async () => {
     tags: generateTags("db"),
   });
 
+  // Create an SNS topic
+  const snsTopic = new aws.sns.Topic(generateTags("sns").Name, {
+    name: generateTags("sns").Name,
+  });
+
   const ec2Role = new aws.iam.Role("WebappEC2Role", {
     name: "WebappEC2Role",
     assumeRolePolicy: JSON.stringify({
@@ -334,13 +351,28 @@ const main = async () => {
     }),
   });
 
-  const cloudWatchPolicy = new aws.iam.PolicyAttachment(
+  const ec2CloudWatchPolicy = new aws.iam.PolicyAttachment(
     "CloudWatchAgentPolicyAttachment",
     {
       policyArn: "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
       roles: [ec2Role.name],
     },
   );
+
+  // Attach policy to EC2 SNS role
+  const ec2SNSPolicy = new aws.iam.RolePolicy("EC2SNSTopicPolicy", {
+    role: ec2Role.id,
+    policy: snsTopic.arn.apply(arn => pulumi.interpolate`{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "sns:Publish",
+                "Resource": "${arn}"
+            }
+        ]
+    }`),
+  });
 
   const instanceProfile = new aws.iam.InstanceProfile("WebappInstanceProfile", {
     name: "MyInstanceProfile",
@@ -349,7 +381,8 @@ const main = async () => {
 
   const userdata = pulumi.all([
     dbInstance.endpoint,
-  ]).apply(([endpoint]) => {
+    snsTopic.arn
+  ]).apply(([endpoint, snsArn]) => {
     return `#!/bin/bash
 # Set your app-specific values
 RDS_ENDPOINT=${endpoint}
@@ -362,6 +395,8 @@ APP_USER_PASSWORD=${appPassword}
 APP_GROUP=${appGroup}
 APP_DIR="/var/www/webapp"
 ENV_DIR="/opt/.env.prod"
+AWS_REGION=${region}
+SNS_TOPIC_ARN=${snsArn}
 
 # Change ENV owner and permissions
 sudo touch $ENV_DIR
@@ -375,6 +410,8 @@ sudo echo POSTGRES_USER=$RDS_USER >> $ENV_DIR
 sudo echo POSTGRES_PASSWORD=$RDS_PASSWORD >> $ENV_DIR
 sudo echo POSTGRES_URI=$(echo $RDS_ENDPOINT | cut -d':' -f 1) >> $ENV_DIR
 sudo echo FILEPATH=$APP_DIR/deployment/user.csv >> $ENV_DIR
+sudo echo SNS_REGION=$AWS_REGION >> $ENV_DIR
+sudo echo SNS_TOPIC_ARN=$SNS_TOPIC_ARN >> $ENV_DIR
 
 # Start cloudwatch service
 sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
@@ -437,8 +474,8 @@ sudo systemctl restart webapp.service
     loadBalancerArn: alb.arn,
     port: 80,
     defaultActions: [{
-        type: "forward",
-        targetGroupArn: targetGroup.arn,
+      type: "forward",
+      targetGroupArn: targetGroup.arn,
     }],
   });
 
@@ -449,13 +486,13 @@ sudo systemctl restart webapp.service
     desiredCapacity: 1,
     vpcZoneIdentifiers: [publicSubnets[0].id, publicSubnets[1].id],
     launchTemplate: {
-        id: launchTemplate.id,
-        version: "$Latest", // or specify a specific version
+      id: launchTemplate.id,
+      version: "$Latest", // or specify a specific version
     },
     targetGroupArns: [targetGroup.arn],
     cooldown: 60,
     tags: [{
-      key: "Name", 
+      key: "Name",
       value: generateTags("ec2").Name,
       propagateAtLaunch: true,
     }],
@@ -530,6 +567,155 @@ sudo systemctl restart webapp.service
     },
   });
 
+  const serviceAccount = new gcp.serviceaccount.Account("gcpcli", {
+    name: "gcpcli",
+    accountId: "csye6225-webapp",
+    project: gcpProject,
+  });
+
+  const serviceAccountKey = new gcp.serviceaccount.Key("account-key", {
+    name: generateTags("gcp-access-key"),
+    serviceAccountId: serviceAccount.accountId,
+    keyAlgorithm: "KEY_ALG_RSA_2048",
+    publicKeyType: "TYPE_X509_PEM_FILE",
+    privateKeyType: "TYPE_GOOGLE_CREDENTIALS_FILE",
+  });
+
+  var serviceAccountKeyDecoded = Buffer.from(serviceAccountKey.privateKeyData || "", "base64").toString("utf-8");
+
+  const bucket = new gcp.storage.Bucket(generateTags("bucket"), {
+    name: generateTags("bucket").Name,
+    location: zone,
+    uniformBucketLevelAccess: true,
+    forceDestroy: true,
+    project: gcpProject,
+    publicAccessPrevention: "enforced",
+    versioning: {
+      enabled: true
+    },
+    storageClass: "STANDARD"
+  });
+
+  const objectAdminPermission = new gcp.storage.BucketIAMBinding("objectAdminPermission", {
+    bucket: bucket.name,
+    members: [pulumi.interpolate`serviceAccount:${serviceAccount.email}`],
+    role: "roles/storage.objectAdmin"
+  });
+
+  // Define the DynamoDB table
+  const dynamoDBTable = new aws.dynamodb.Table(generateTags("dynamodb").Name, {
+    name: dynamodbTableName,
+    attributes: [
+      { name: "id", type: "S" },
+      { name: "timestamp", type: "N" },
+    ],
+    billingMode: "PAY_PER_REQUEST",
+    hashKey: "id",
+    rangeKey: "timestamp",
+  });
+
+  // Define an IAM role for the Lambda function to consume from SNS
+  const lambdaSNSRole = new aws.iam.Role("LambdaSNSRole", {
+    assumeRolePolicy: pulumi.interpolate`{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Action": "sts:AssumeRole",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": "lambda.amazonaws.com"
+                }
+            }
+        ]
+    }`,
+  });
+
+  // Attach a policy to the Lambda SNS role allowing it to consume messages from the SNS topic
+  const lambdaSNSPolicy = new aws.iam.RolePolicy("LambdaSNSTopicPolicy", {
+    role: lambdaSNSRole.id,
+    policy: snsTopic.arn.apply(arn => pulumi.interpolate`{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "sns:Subscribe",
+                "Resource": "${arn}"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "sns:ConfirmSubscription",
+                    "sns:Receive"
+                ],
+                "Resource": "${arn}"
+            }
+        ]
+    }`),
+  });
+
+  // Attach the AWSLambdaBasicExecutionRole managed policy to the Lambda role
+  const lambdaRolePolicyAttachment = new aws.iam.RolePolicyAttachment("lambdaRolePolicyAttachment", {
+    role: lambdaSNSRole.name,
+    policyArn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+  });
+
+  let fileAsset = new pulumi.asset.FileArchive("../../serverless");
+
+  // Create Lambda function
+  const lambdaFunction = new aws.lambda.Function(generateTags("upload-submission-lambda"), {
+    name: generateTags("lambda").Name,
+    runtime: aws.lambda.Runtime.NodeJS18dX,
+    handler: "index.handler",
+    role: lambdaSNSRole.arn,
+    code: fileAsset,
+    environment: {
+      variables: {
+        GCSBucketName: bucket.name,
+        GCSAccessKeys: accessKeys,
+        serviceAccountPvtKey: serviceAccountKeyDecoded,
+        project: gcpProject,
+        accountEmail: serviceAccount.email,
+        DYNAMODB_TABLE_NAME: dynamodbTableName,
+        EMAIL_API_KEY: emailApiKey,
+        EMAIL_DOMAIN: "skudli.xyz",
+        test: "test",
+      }
+    }
+  });
+
+  // Add SNS trigger to Lambda function
+  const lambdaSnsPermission = new aws.lambda.Permission("lambdaSnsPermission", {
+    action: "lambda:InvokeFunction",
+    function: lambdaFunction.arn,
+    principal: "sns.amazonaws.com",
+    sourceArn: snsTopic.arn,
+  });
+
+  // Subscribe Lambda to SNS
+  const snsSubscription = new aws.sns.TopicSubscription(generateTags("lambda-subscription"), {
+    name: generateTags("lambda-subscription"),
+    topic: snsTopic,
+    protocol: "lambda",
+    endpoint: lambdaFunction.arn,
+  });
+
+  // Grant PutItem permission on the DynamoDB table to the Lambda role
+  const dynamoDBTablePolicy = new aws.iam.RolePolicy("dynamoDBTablePolicy", {
+    role: lambdaSNSRole.name,
+    policy: dynamoDBTable.arn.apply(arn => JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Action: [
+            "dynamodb:PutItem",
+          ],
+          Resource: arn,
+        },
+      ],
+    })),
+  });
+
   // Export the VPC ID and other resources if needed.
   return {
     vpcId: myVpc.id,
@@ -537,6 +723,8 @@ sudo systemctl restart webapp.service
     publicSubnetIds: publicSubnets.map((subnet) => subnet.id),
     privateSubnetIds: privateSubnets.map((subnet) => subnet.id),
     dbEndpoint: dbInstance.endpoint,
+    dynamoDBTableArn: dynamoDBTable.arn,
+    serviceAccountKey: serviceAccountKeyDecoded,
   };
 };
 
@@ -546,3 +734,5 @@ exports.internetGateway = outputs.then((obj) => obj.internetGatewayId);
 exports.publicSubnets = outputs.then((obj) => obj.publicSubnetIds);
 exports.privateSubnets = outputs.then((obj) => obj.privateSubnetIds);
 exports.dbEndpoint = outputs.then((obj) => obj.dbEndpoint);
+exports.dynamoDBTableArn = outputs.then((obj) => obj.dynamoDBTableArn);
+exports.serviceAccountKey = outputs.then((obj) => obj.serviceAccountKey);
