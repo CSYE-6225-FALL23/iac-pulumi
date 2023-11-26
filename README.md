@@ -1,6 +1,6 @@
 # Infrastructure as Code for a webapp
 
-AWS Infrastructure as code using pulumi for AWS
+AWS Infrastructure as code using pulumi for AWS and GCP
 
 ## Table of Contents
 
@@ -44,11 +44,30 @@ pulumi config set aws:region <your-region>
 Create a profile.<stackname>.yaml or append the following variables:
 ```yaml
 config:
-  webapp:project: webapp
   aws:profile: dev
-  aws:region: us-west-1
-  webapp:numberOfAzs: 3
+  aws:region: us-east-1
+  gcp:project: csye6225-dev-406102
+  gcp:zone: us-east1
+  webapp:accessKeys: "./accesskeys.json"
+  webapp:appGroup: "csye6225"
+  webapp:appPassword: "csye6225"
+  webapp:appUser: "csye6225"
+  webapp:ebsVolumeSize: "25"
+  webapp:ebsVolumeType: "gp2"
+  webapp:ec2InstanceType: t2.micro
+  webapp:ec2Keypair: csye6225-dev-key
+  webapp:gcsBucketName: "csye6225-webapp"
+  webapp:hostedZone: "dev.skudli.xyz"
+  webapp:maxAllowedAzs: "3"
+  webapp:myIp: "0.0.0.0/0"
+  webapp:project: webapp
+  webapp:rdsDB: "csye6225"
+  webapp:rdsPassword: "csye6225"
+  webapp:rdsUser: "csye6225"
+  webapp:serverPort: "8000"
   webapp:vpcCidrBlock: 10.0.0.0/16
+  webapp:dynamodbTableName: "webapp-dev-dynamodb"
+  webapp:emailApiKey: "ffb00eeafe5baf861de1102fe3fe9b58-5d2b1caa-94c15328"
 ```
 
 ## Usage

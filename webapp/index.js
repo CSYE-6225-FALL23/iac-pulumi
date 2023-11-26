@@ -35,7 +35,6 @@ const appGroup = config.require("appGroup");
 const hostedZoneDNS = config.require("hostedZone");
 
 const accessKeys = config.require("accessKeys");
-const dynamodbTableName = config.require("dynamodbTableName");
 const emailApiKey = config.require("emailApiKey");
 
 var azs = [];
@@ -629,7 +628,7 @@ sudo systemctl restart webapp.service
 
   // Define the DynamoDB table
   const dynamoDBTable = new aws.dynamodb.Table(generateTags("dynamodb").Name, {
-    name: dynamodbTableName,
+    name: generateTags("dynamodb").Name,
     attributes: [
       { name: "id", type: "S" },
       { name: "timestamp", type: "N" },
@@ -701,7 +700,7 @@ sudo systemctl restart webapp.service
         serviceAccountPvtKey: serviceAccountKeyDecoded,
         project: gcpProject,
         accountEmail: serviceAccount.email,
-        DYNAMODB_TABLE_NAME: dynamodbTableName,
+        DYNAMODB_TABLE_NAME: dynamoDBTable.name,
         EMAIL_API_KEY: emailApiKey,
         EMAIL_DOMAIN: "skudli.xyz",
         test: "test",
