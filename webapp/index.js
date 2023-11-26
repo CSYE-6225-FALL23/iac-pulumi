@@ -2,8 +2,8 @@ const fs = require("fs");
 
 const pulumi = require("@pulumi/pulumi");
 const aws = require("@pulumi/aws");
-
 const gcp = require("@pulumi/gcp");
+const { generatePrime } = require("crypto");
 
 const config = new pulumi.Config();
 
@@ -54,6 +54,7 @@ const generateTags = (resourceName, additionalTags = []) => {
   return tags;
 };
 
+// Get all availability zones in a region
 const loadAvailabilityZones = async () => {
   try {
     const zones = await aws.getAvailabilityZones({
@@ -65,6 +66,7 @@ const loadAvailabilityZones = async () => {
   }
 };
 
+// Get latest AMI matching the prefix
 const getAmi = async () => {
   try {
     const ami = await aws.ec2.getAmi({
@@ -172,6 +174,7 @@ const main = async () => {
     );
   });
 
+  // Attach public route table to IG
   const routeTableAssociation = new aws.ec2.RouteTableAssociation(
     "routeTableAssociation",
     {
@@ -180,6 +183,7 @@ const main = async () => {
     },
   );
 
+  // Load balancer security group
   const elbSecurityGroup = new aws.ec2.SecurityGroup(
     generateTags("elb-sg").Name,
     {
@@ -203,6 +207,7 @@ const main = async () => {
     },
   );
 
+  // EC2 security group ingress
   const ec2SecurityGroup = new aws.ec2.SecurityGroup(
     generateTags("ec2-sg").Name,
     {
@@ -219,13 +224,14 @@ const main = async () => {
         {
           protocol: "tcp",
           fromPort: serverPort,
-          toPort: serverPort,
-          securityGroups: [elbSecurityGroup.id],
+          toPort: serverPort, // Application port
+          securityGroups: [elbSecurityGroup.id], // Allow traffic from ELB
         },
       ],
     },
   );
 
+  // Allow networking from ELB to EC2
   const allowOutboundToEC2Rule = new aws.ec2.SecurityGroupRule(
     "AllowOutboundToEC2",
     {
@@ -238,6 +244,7 @@ const main = async () => {
     },
   );
 
+  // Postgres security group
   const dbSecurityGroup = new aws.ec2.SecurityGroup(
     generateTags("db-sg").Name,
     {
@@ -251,12 +258,13 @@ const main = async () => {
           protocol: "tcp",
           fromPort: 5432,
           toPort: 5432,
-          securityGroups: [ec2SecurityGroup.id],
+          securityGroups: [ec2SecurityGroup.id], // Allow traffic from EC2
         },
       ],
     },
   );
 
+  // Allow networking from EC2 to Postgres
   const allowOutboundToDBRule = new aws.ec2.SecurityGroupRule(
     "AllowOutboundToDB",
     {
@@ -269,6 +277,7 @@ const main = async () => {
     },
   );
 
+  // Allow networking from EC2 to Cloudwatch
   const allowOutboundToCloudwatchRule = new aws.ec2.SecurityGroupRule(
     "AllowOutboundToCloudwatch",
     {
@@ -281,7 +290,8 @@ const main = async () => {
     },
   );
 
-  const allowOutboundToStatsdhRule = new aws.ec2.SecurityGroupRule(
+  // Allow EC2 to send metrics to statsD (runs on UDP port 8125 - default)
+  const allowOutboundToStatsdRule = new aws.ec2.SecurityGroupRule(
     "AllowOutboundToStatsd",
     {
       type: "egress",
@@ -293,15 +303,17 @@ const main = async () => {
     },
   );
 
+  // Create a subnet group
   const dbSubnetGroup = new aws.rds.SubnetGroup(
     generateTags("db-pvt-sng").Name,
     {
       description: "Subnet group for the RDS instance",
-      subnetIds: [privateSubnets[0].id, privateSubnets[1].id],
+      subnetIds: privateSubnets.forEach(subnet => subnet.id),
       name: generateTags("db-pvt-sng").Name,
     },
   );
 
+  // Parameter group configuration for RDS
   const dbParameterGroup = new aws.rds.ParameterGroup(
     generateTags("db-pg").Name,
     {
@@ -310,6 +322,7 @@ const main = async () => {
     },
   );
 
+  // RDS instance (Postgres 15, t3.micro)
   const dbInstance = new aws.rds.Instance(generateTags("db").Name, {
     identifier: generateTags("db").Name,
     dbName: rdsDB,
@@ -335,8 +348,9 @@ const main = async () => {
     name: generateTags("sns").Name,
   });
 
-  const ec2Role = new aws.iam.Role("WebappEC2Role", {
-    name: "WebappEC2Role",
+  // Create IAM role for running EC2
+  const ec2Role = new aws.iam.Role(generateTags("ec2-role").Name, {
+    name: generateTags("ec2-role").Name,
     assumeRolePolicy: JSON.stringify({
       Version: "2012-10-17",
       Statement: [
@@ -351,6 +365,7 @@ const main = async () => {
     }),
   });
 
+  // Allow IAM access from EC2 to Cloudwatch
   const ec2CloudWatchPolicy = new aws.iam.PolicyAttachment(
     "CloudWatchAgentPolicyAttachment",
     {
@@ -359,8 +374,9 @@ const main = async () => {
     },
   );
 
-  // Attach policy to EC2 SNS role
-  const ec2SNSPolicy = new aws.iam.RolePolicy("EC2SNSTopicPolicy", {
+  // Attach IAM access from EC2 to SNS
+  const ec2SNSPolicy = new aws.iam.RolePolicy(generateTags("ec2-sns-policy").Name, {
+    name: generateTags("ec2-sns-policy").Name,
     role: ec2Role.id,
     policy: snsTopic.arn.apply(arn => pulumi.interpolate`{
         "Version": "2012-10-17",
@@ -374,17 +390,20 @@ const main = async () => {
     }`),
   });
 
-  const instanceProfile = new aws.iam.InstanceProfile("WebappInstanceProfile", {
-    name: "MyInstanceProfile",
+  // EC2 instance profile
+  const instanceProfile = new aws.iam.InstanceProfile(generateTags("ec2-instance-profile").Name, {
+    name: generateTags("ec2-instance-profile").Name,
     role: ec2Role.name,
   });
 
+  // Init script for EC2
   const userdata = pulumi.all([
     dbInstance.endpoint,
     snsTopic.arn
   ]).apply(([endpoint, snsArn]) => {
     return `#!/bin/bash
 # Set your app-specific values
+AWS_REGION=${region}
 RDS_ENDPOINT=${endpoint}
 RDS_DB=${rdsDB}
 RDS_USER=${rdsUser}
@@ -395,7 +414,6 @@ APP_USER_PASSWORD=${appPassword}
 APP_GROUP=${appGroup}
 APP_DIR="/var/www/webapp"
 ENV_DIR="/opt/.env.prod"
-AWS_REGION=${region}
 SNS_TOPIC_ARN=${snsArn}
 
 # Change ENV owner and permissions
@@ -422,7 +440,7 @@ sudo systemctl restart webapp.service
   });
 
   // Define your launch template
-  const launchTemplate = new aws.ec2.LaunchTemplate("launch-template", {
+  const launchTemplate = new aws.ec2.LaunchTemplate(generateTags("lt").Name, {
     name: generateTags("lt").Name,
     instanceType: ec2InstanceType,
     imageId: ami.id,
@@ -444,11 +462,11 @@ sudo systemctl restart webapp.service
 
   // Create an Application Load Balancer
   const alb = new aws.lb.LoadBalancer(generateTags("alb").Name, {
+    name: generateTags("alb").Name,
     loadBalancerType: "application",
     securityGroups: [elbSecurityGroup.id],
     subnets: publicSubnets.map(subnet => (subnet.id)),
     enableDeletionProtection: false,
-    tags: generateTags("alb")
   });
 
   // Define a target group
@@ -508,6 +526,7 @@ sudo systemctl restart webapp.service
     name: hostedZoneDNS,
   });
 
+  // Create DNS A record
   const aRecord = new aws.route53.Record("dns-alias", {
     zoneId: hostedZone.then(zone => zone.id),
     name: hostedZoneDNS,
@@ -535,6 +554,7 @@ sudo systemctl restart webapp.service
     scalingAdjustment: 1,
   });
 
+  // Cloudwatch alarm to remove instance
   const scaleDownAlarm = new aws.cloudwatch.MetricAlarm('scaledown-alarm', {
     alarmDescription: 'Scale down when CPU utilization is below 3%',
     alarmName: 'ScaleDownAlarm',
@@ -551,6 +571,7 @@ sudo systemctl restart webapp.service
     },
   });
 
+  // Cloudwatch alarm to add instance
   const scaleUpAlarm = new aws.cloudwatch.MetricAlarm('scaleup-alarm', {
     alarmDescription: 'Scale up when CPU utilization is below 3%',
     alarmName: 'ScaleUpAlarm',
@@ -567,12 +588,14 @@ sudo systemctl restart webapp.service
     },
   });
 
+  // Create GCP service account
   const serviceAccount = new gcp.serviceaccount.Account("gcpcli", {
     name: "gcpcli",
     accountId: "csye6225-webapp",
     project: gcpProject,
   });
 
+  // Create GCP service account access key
   const serviceAccountKey = new gcp.serviceaccount.Key("account-key", {
     name: generateTags("gcp-access-key"),
     serviceAccountId: serviceAccount.accountId,
@@ -583,6 +606,7 @@ sudo systemctl restart webapp.service
 
   var serviceAccountKeyDecoded = Buffer.from(serviceAccountKey.privateKeyData || "", "base64").toString("utf-8");
 
+  // Create GCP bucket (Standard, single region, private)
   const bucket = new gcp.storage.Bucket(generateTags("bucket"), {
     name: generateTags("bucket").Name,
     location: zone,
@@ -596,6 +620,7 @@ sudo systemctl restart webapp.service
     storageClass: "STANDARD"
   });
 
+  // Assign object admin policy to the account 
   const objectAdminPermission = new gcp.storage.BucketIAMBinding("objectAdminPermission", {
     bucket: bucket.name,
     members: [pulumi.interpolate`serviceAccount:${serviceAccount.email}`],
@@ -659,6 +684,7 @@ sudo systemctl restart webapp.service
     policyArn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
   });
 
+  // Files for lambda function
   let fileAsset = new pulumi.asset.FileArchive("../../serverless");
 
   // Create Lambda function
@@ -724,7 +750,9 @@ sudo systemctl restart webapp.service
     privateSubnetIds: privateSubnets.map((subnet) => subnet.id),
     dbEndpoint: dbInstance.endpoint,
     dynamoDBTableArn: dynamoDBTable.arn,
+    snsTopicArn: snsTopic.arn,
     serviceAccountKey: serviceAccountKeyDecoded,
+    gcsBucketName: bucket.name,
   };
 };
 
@@ -736,3 +764,5 @@ exports.privateSubnets = outputs.then((obj) => obj.privateSubnetIds);
 exports.dbEndpoint = outputs.then((obj) => obj.dbEndpoint);
 exports.dynamoDBTableArn = outputs.then((obj) => obj.dynamoDBTableArn);
 exports.serviceAccountKey = outputs.then((obj) => obj.serviceAccountKey);
+exports.snsTopicArn = outputs.then((obj) => obj.snsTopicArn);
+exports.gcsBucketName = outputs.then((obj) => obj.gcsBucketName);
