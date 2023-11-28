@@ -34,7 +34,7 @@ const appGroup = config.require("appGroup");
 
 const hostedZoneDNS = config.require("hostedZone");
 
-const accessKeys = config.require("accessKeys");
+const myDomain = config.require("myDomain");
 const emailApiKey = config.require("emailApiKey");
 
 var azs = [];
@@ -702,7 +702,7 @@ sudo systemctl restart webapp.service
         DYNAMODB_TABLE_NAME: dynamoDBTable.name,
         SNS_TOPIC_ARN: snsTopic.arn,
         EMAIL_API_KEY: emailApiKey,
-        EMAIL_DOMAIN: "skudli.xyz",
+        EMAIL_DOMAIN: myDomain,
       }
     }
   });
