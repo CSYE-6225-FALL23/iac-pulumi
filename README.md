@@ -15,7 +15,8 @@ AWS Infrastructure as code using pulumi for AWS and GCP
   - [License](#license)
 
 # Infrastructure Diagram
-![Infrastructure](https://github.com/dev-kudli/iac-pulumi/assets/53204171/65e51564-a456-42b6-a51f-ed50a1796fa2)
+<img src="./webapp/assets/architecture_diagram.png" width="1000" height="600">
+<!-- ![Infrastructure](./webapp/assets/architecture_diagram.png) -->
 
 ## Prerequisites
 

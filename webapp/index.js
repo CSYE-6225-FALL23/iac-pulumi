@@ -223,7 +223,7 @@ const main = async () => {
         {
           protocol: "tcp",
           fromPort: serverPort,
-          toPort: serverPort, // Application port
+          toPort: serverPort, // Application portrvice
           securityGroups: [elbSecurityGroup.id], // Allow traffic from ELB
         },
       ],
@@ -307,7 +307,7 @@ const main = async () => {
     generateTags("db-pvt-sng").Name,
     {
       description: "Subnet group for the RDS instance",
-      subnetIds: privateSubnets.forEach(subnet => subnet.id),
+      subnetIds: privateSubnets.map(subnet => subnet.id),
       name: generateTags("db-pvt-sng").Name,
     },
   );
@@ -449,8 +449,12 @@ sudo systemctl restart webapp.service
     keyName: ec2KeyPair,
     subnetId: publicSubnets[0].id,
     disableApiTermination: false,
-    vpcSecurityGroupIds: [ec2SecurityGroup.id],
-    associatePublicIpAddress: true,
+    networkInterfaces: [{
+      deviceIndex: '0',
+      subnetId: publicSubnets[0].id,
+      associatePublicIpAddress: true,
+      securityGroups: [ec2SecurityGroup.id],
+    }],
     userData: pulumi.interpolate`${userdata.apply(script => Buffer.from(script).toString('base64'))}`,
     rootBlockDevice: {
       volumeSize: ebsVolumeSize,
@@ -504,7 +508,7 @@ sudo systemctl restart webapp.service
     vpcZoneIdentifiers: [publicSubnets[0].id, publicSubnets[1].id],
     launchTemplate: {
       id: launchTemplate.id,
-      version: "$Latest", // or specify a specific version
+      version: "$Latest",
     },
     targetGroupArns: [targetGroup.arn],
     cooldown: 60,
@@ -595,18 +599,16 @@ sudo systemctl restart webapp.service
   });
 
   // Create GCP service account access key
-  const serviceAccountKey = new gcp.serviceaccount.Key("account-key", {
-    name: generateTags("gcp-access-key"),
+  const serviceAccountKey = new gcp.serviceaccount.Key(generateTags("gcp-access-key").Name, {
+    name: generateTags("gcp-access-key").Name,
     serviceAccountId: serviceAccount.accountId,
     keyAlgorithm: "KEY_ALG_RSA_2048",
     publicKeyType: "TYPE_X509_PEM_FILE",
     privateKeyType: "TYPE_GOOGLE_CREDENTIALS_FILE",
   });
 
-  var serviceAccountKeyDecoded = Buffer.from(serviceAccountKey.privateKeyData || "", "base64").toString("utf-8");
-
   // Create GCP bucket (Standard, single region, private)
-  const bucket = new gcp.storage.Bucket(generateTags("bucket"), {
+  const bucket = new gcp.storage.Bucket(generateTags("bucket").Name, {
     name: generateTags("bucket").Name,
     location: zone,
     uniformBucketLevelAccess: true,
@@ -695,15 +697,12 @@ sudo systemctl restart webapp.service
     code: fileAsset,
     environment: {
       variables: {
-        GCSBucketName: bucket.name,
-        GCSAccessKeys: accessKeys,
-        serviceAccountPvtKey: serviceAccountKeyDecoded,
-        project: gcpProject,
-        accountEmail: serviceAccount.email,
+        GCS_BUCKET_NAME: bucket.name,
+        GCP_SERVICE_ACCOUNT_PVT_KEY: serviceAccountKey.privateKey,
         DYNAMODB_TABLE_NAME: dynamoDBTable.name,
+        SNS_TOPIC_ARN: snsTopic.arn,
         EMAIL_API_KEY: emailApiKey,
         EMAIL_DOMAIN: "skudli.xyz",
-        test: "test",
       }
     }
   });
@@ -749,8 +748,8 @@ sudo systemctl restart webapp.service
     privateSubnetIds: privateSubnets.map((subnet) => subnet.id),
     dbEndpoint: dbInstance.endpoint,
     dynamoDBTableArn: dynamoDBTable.arn,
+    serviceAccountKey: serviceAccountKey.privateKey,
     snsTopicArn: snsTopic.arn,
-    serviceAccountKey: serviceAccountKeyDecoded,
     gcsBucketName: bucket.name,
   };
 };
