@@ -11,17 +11,24 @@ AWS Infrastructure as code using pulumi for AWS and GCP
   - [Getting Started](#getting-started)
     - [Installation](#installation)
     - [Configuration](#configuration)
+  - [Architecture Components](#architecture-components)
+  - [Networking](#networking)
   - [Usage](#usage)
   - [License](#license)
 
 # Infrastructure Diagram
 <img src="./webapp/assets/architecture_diagram.png" width="1000" height="600">
-<!-- ![Infrastructure](./webapp/assets/architecture_diagram.png) -->
+
+# Architecture Components
+## Route53
+- Create
 
 ## Prerequisites
-
-- Node.js 18.x or higher
-- Pulumi
+The following versions were the latest when I started the project. You could upgrade them as per requirements.
+- Node.js v18.x
+- Pulumi v3.87.0
+- AWS Account and CLI v2.13.24
+- GCP Account
 
 ## Getting Started
 
@@ -87,6 +94,10 @@ pulumi up
 
 # Destroy resources
 pulumi destroy
+```
+## Command to import certificates to AWS
+```bash
+aws acm import-certificate --certificate fileb://ssl\certificate.crt --private-key fileb://ssl\private.key --certificate-chain fileb://ssl\ca_bundle.crt --region us-east-1 --profile demo
 ```
 
 ## License

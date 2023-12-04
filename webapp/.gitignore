@@ -6,3 +6,5 @@
 
 # Except for pulumi.yml
 !pulumi.yml
+
+ssl/*

@@ -37,6 +37,8 @@ const hostedZoneDNS = config.require("hostedZone");
 const myDomain = config.require("myDomain");
 const emailApiKey = config.require("emailApiKey");
 
+const certificateArn = config.require("sslCertificateArn");
+
 var azs = [];
 
 /**
@@ -190,12 +192,6 @@ const main = async () => {
       description: "Allow incoming SSH and TCP",
       vpcId: myVpc.id,
       ingress: [
-        {
-          protocol: "tcp",
-          fromPort: 80,
-          toPort: 80,
-          cidrBlocks: ["0.0.0.0/0"],
-        },
         {
           protocol: "tcp",
           fromPort: 443,
@@ -455,6 +451,7 @@ sudo systemctl restart webapp.service
       associatePublicIpAddress: true,
       securityGroups: [ec2SecurityGroup.id],
     }],
+    // vpcSecurityGroupIds: [ec2SecurityGroup],
     userData: pulumi.interpolate`${userdata.apply(script => Buffer.from(script).toString('base64'))}`,
     rootBlockDevice: {
       volumeSize: ebsVolumeSize,
@@ -493,7 +490,10 @@ sudo systemctl restart webapp.service
   // Create a listener for the Application Load Balancer to route traffic
   const listener = new aws.lb.Listener("listener", {
     loadBalancerArn: alb.arn,
-    port: 80,
+    port: 443,
+    protocol: "HTTPS",
+    sslPolicy: "ELBSecurityPolicy-2016-08",
+    certificateArn: certificateArn,
     defaultActions: [{
       type: "forward",
       targetGroupArn: targetGroup.arn,
@@ -501,7 +501,8 @@ sudo systemctl restart webapp.service
   });
 
   // Create an Auto Scaling Group
-  const autoScalingGroup = new aws.autoscaling.Group("asg", {
+  const autoScalingGroup = new aws.autoscaling.Group(generateTags("asg").Name, {
+    name: generateTags("asg").Name,
     maxSize: 3,
     minSize: 1,
     desiredCapacity: 1,
