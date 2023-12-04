@@ -214,7 +214,7 @@ const main = async () => {
           protocol: "tcp",
           fromPort: 22,
           toPort: 22,
-          cidrBlocks: [myIp],
+          securityGroups: [elbSecurityGroup.id],
         },
         {
           protocol: "tcp",
