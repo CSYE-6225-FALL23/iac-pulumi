@@ -20,8 +20,9 @@ AWS Infrastructure as code using pulumi for AWS and GCP
 <img src="./webapp/assets/architecture_diagram.png" width="1000" height="600">
 
 # Architecture Components
-## Route53
-- Create
+
+# Applciation Setup
+Before launching our application on cloud using Pulumi, let's configure our DNS, Email server, and SSL certificates [here](./SETUP.md)
 
 ## Prerequisites
 The following versions were the latest when I started the project. You could upgrade them as per requirements.
@@ -31,84 +32,60 @@ The following versions were the latest when I started the project. You could upg
 - AWS Account
 - GCP Account
 
-## Getting Started
+## Getting Started with Pulumi
 
-To get started with IAC with pulumi:
-
-### Installation
+### Project Creation
 
 ```bash
-# Create a new pulumi project in js
+# Create a new pulumi project in JavaScript
 pulumi new aws-javascript
 
 # Create a stck
 pulumi stack init <stackname>
 
-# Set aws profile and region
+# Set AWS profile and region
 pulumi config set aws:profile <profilename>
 pulumi config set aws:region <your-region>
 ```
 
 ### Configuration
-Create a profile.<stackname>.yaml or append the following variables:
+Create a profilename.stackname.yaml and add the following variables:
 ```yaml
 config:
   aws:profile: dev
   aws:region: us-east-1
-  gcp:project: csye6225-dev-406102
+  gcp:project: csye6225-demo-406318
   gcp:zone: us-east1
-  webapp:accessKeys: "./accesskeys.json"
   webapp:appGroup: "csye6225"
   webapp:appPassword: "csye6225"
   webapp:appUser: "csye6225"
   webapp:ebsVolumeSize: "25"
   webapp:ebsVolumeType: "gp2"
   webapp:ec2InstanceType: t2.micro
-  webapp:ec2Keypair: csye6225-dev-key
-  webapp:gcsBucketName: "csye6225-webapp"
-  webapp:hostedZone: "dev.skudli.xyz"
+  webapp:ec2Keypair: csye6225-demo-key
+  webapp:gcsBucketName: "csye6225-webapp-demo"
+  webapp:hostedZone: "app.sudarshankudli.me"
   webapp:maxAllowedAzs: "3"
-  webapp:myIp: "0.0.0.0/0"
   webapp:project: webapp
   webapp:rdsDB: "csye6225"
   webapp:rdsPassword: "csye6225"
   webapp:rdsUser: "csye6225"
   webapp:serverPort: "8000"
   webapp:vpcCidrBlock: 10.0.0.0/16
-  webapp:dynamodbTableName: "webapp-dev-dynamodb"
-  webapp:emailApiKey: "ffb00eeafe5baf861de1102fe3fe9b58-5d2b1caa-94c15328"
+  webapp:emailApiKey: "*****" //paste your mailgun API key
+  webapp:myDomain: "sudarshankudli.me" //domain from which emails are sent
+  webapp:sslCertificateArn: "arn:aws:acm:us-east-1:*****" //paste your certificate arn
 ```
 
-## Usage
-```bash
-# View pulumi configuration
-pulumi config
-
-# Switch stack
-pulumi stack select <stackname>
-
-# View all stacks
-pulumi stack ls
-
-# Create resources
-pulumi up
-
-# Destroy resources
-pulumi destroy
-```
-
-## SSL Certificates
-```bash
-aws acm import-certificate --certificate fileb://ssl\certificate.crt --private-key fileb://ssl\private.key --certificate-chain fileb://ssl\ca_bundle.crt --region us-east-1 --profile demo
-```
+## Creating resources
+Once you're ready with the setup, running `pulumi up` will bring up the required resources
+> [!Tip]
+> Take a cup of coffee ad sit back! it's gonna take a few minutes
 
 ## Networking
-Our project is set up within a VPC to isolate and secure resources. Subnets are strategically defined to control traffic and enhance network segmentation.
+Our project is set up within a VPC to isolate and secure resources. Subnets are strategically defined to control traffic and enhance network segmentation. Networking of resources is documented in detail [here](./NETWORKING.MD)
 
-### Subnets
-Subnets
-
-## Snapshots
+## AMI and Snapshots
 When you create an Amazon Machine Image (AMI) using Packer with Amazon Elastic Block Store (EBS) storage, Amazon EC2 automatically creates an EBS snapshot. This snapshot is essentially a point-in-time copy of the EBS volume attached to the instance used to create the AMI. They are managed by AWS and are stored in a highly durable and redundant manner within the AWS infrastructure. They are not directly exposed as objects in an S3 bucket, and users don't interact with the underlying storage mechanism. Below are some of the use cases.
 
 > [!IMPORTANT]
