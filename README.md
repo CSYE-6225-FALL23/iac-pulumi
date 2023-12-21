@@ -83,7 +83,49 @@ Once you're ready with the setup, running `pulumi up` will bring up the required
 > Take a cup of coffee ad sit back! it's gonna take a few minutes
 
 ## Networking
-Our project is set up within a VPC to isolate and secure resources. Subnets are strategically defined to control traffic and enhance network segmentation. Networking of resources is documented in detail [here](./NETWORKING.MD)
+Our project is set up within a VPC to isolate and secure resources. Subnets are strategically defined to control traffic and enhance network segmentation.
+
+- Subnets - One public and private subnet in every AZ given a region
+- Route table - Every subnet must be associated with a route table. Private subnets are connected to private route table and public subnets to public route table.
+
+Public route table configuration
+| Destination | Target |
+| :---   | :--- |
+| VPC CIDR | local |
+| 0.0.0.0/0 | igw  |
+
+> [!IMPORTANT]
+> Ensure to remove routes to internet gateway for private route tables
+
+### EC2 and other services
+It's important to configure security groups for our application to talk to other services and secure access to it. We're using CloudWatch agent to send logs to CloudWatch. All logs are written to a file /var/log/webapp.log. When you configure the CloudWatch Agent to monitor log files, it essentially tails the log files for changes. The agent continuously scans the log files for new entries and sends those entries to CloudWatch Logs in near real-time. We're also using StatsD to collect metrics of the number of API requests. StatsD runs on port 8125 on udp protocol.
+
+| Protocol | Destination | Port | Reason |
+| :---   | :--- | :--- | :--- |
+| tcp | 0.0.0.0/0 | 443 | Allow https traffic for CloudWatch logs |
+| udp | 0.0.0.0/0 | 8125 | Allow udp for statsD |
+| tcp | DBSecurityGroup | 5432 | Connect to RDS (Postgres) |
+
+Inbound rules allow us to configure access to EC2, in our application we need tcp and ssh access for the load balancer.
+
+| Protocol | Source | Port | Reason |
+| :---   | :--- | :--- | :--- |
+| tcp | LoadBalancerSecurityGroup | 8000 | Serve API requests on port 8000 (application port) |
+| ssh | 0.0.0.0/0 | 22 | Allow ssh connections for debugging |
+
+> [!TIP]
+> SSH access is only for debugging. It must be removed afterwards
+
+### Load Balancer
+Load balancer is a public facing service as we want users to connect to our web application. Hence, we allow all Https incoming traffic and route them to EC2.
+
+| Protocol | CIDR/Security Group | Port | Type |
+| :---   | :--- | :--- | :--- |
+| tcp | 0.0.0.0/0 | 443 | Inbound - Allow https connections from the internet |
+| tcp | EC2SecurityGroup | 8000 | Outbound - Reverse proxy to route traffic to EC2 |
+
+> [!TIP]
+> You can add Http connections as well on port 80
 
 ## AMI and Snapshots
 When you create an Amazon Machine Image (AMI) using Packer with Amazon Elastic Block Store (EBS) storage, Amazon EC2 automatically creates an EBS snapshot. This snapshot is essentially a point-in-time copy of the EBS volume attached to the instance used to create the AMI. They are managed by AWS and are stored in a highly durable and redundant manner within the AWS infrastructure. They are not directly exposed as objects in an S3 bucket, and users don't interact with the underlying storage mechanism. Below are some of the use cases.
