@@ -6,6 +6,9 @@ This documentation outlines the step-by-step process for running integration tes
 - Steps to build AMI
 - Post Build Steps
 
+> [!NOTE]
+> The complete workflows can be found [here](https://github.com/CSYE-6225-FALL23/webapp/tree/main/.github/workflows)
+
 ## Integration Testing
 Integration tests are designed to verify that different parts of your system work well together. In this case, we will be using Chai-HTTP to test a database health check endpoint in a Node.js application.
 
@@ -60,14 +63,14 @@ else
 fi
 ```
 
-#### Build AMI
+#### Building the AMI
 AMI takes care of essential installations and setup required for the application to run. It includes
 - Installing CloudWatch agent and NodeJS
 - Copy the Zip file and extract to a known location
 - Give necessary permissions for files/folders
 - Start the app using systemd (We need to restart the app after `pulumi up` to incorporate environment variables)
 
-> We have the packer file in `deployment/ami` folder inside the `webapp` repository. The packer build command builds the AMI in our AWS account configured in the file.
+> We have the packer file in `deployment/ami` folder inside the [webapp](https://github.com/CSYE-6225-FALL23/webapp) repository. The packer build command builds the AMI in our AWS account configured in the file.
 
 > [!IMPORTANT]
 > Variables passed to packer command are stored as either Github secrets or variables.
@@ -95,7 +98,7 @@ packer build \
 ```
 
 ## Post Build Steps
-The launch template configured using Pulumi should be updated with the latest AMI ID. This template is saved as a new version which is then used by the auto-scaling-group to launch EC2 instances.
+Once the new AMI is active, the launch template configured using Pulumi should be updated with the latest AMI ID. This template is saved as a new version which is then used by the auto-scaling-group to launch EC2 instances.
 
 #### Update Launch Template
 ```bash
@@ -108,12 +111,14 @@ aws ec2 create-launch-template-version \
 
 #### Refresh Auto-Scaling-Group
 ```bash
-# Set Latest Launch Template Version as Default
-launch_template_name="${{ vars.WEBAPP_PROJECT_NAME }}-${{ vars.WEBAPP_DEV_ACCOUNT }}-lt"
-aws ec2 modify-launch-template \
-    --launch-template-name $launch_template_name \
-    --default-version ${{ steps.template.outputs.latest_version }} \
-    --output json
+# Start Auto Scaling Group Instance Refresh
+asg_name="${{ vars.WEBAPP_PROJECT_NAME }}-${{ vars.WEBAPP_DEV_ACCOUNT }}-asg"
+instance_refresh_command_output=$(aws autoscaling start-instance-refresh \
+    --auto-scaling-group-name $asg_name \
+    --preferences MinHealthyPercentage=100 \
+    --output json)
+instance_refresh_id=$(echo $instance_refresh_command_output | jq -r '.InstanceRefreshId')
+echo "Instance Refresh ID: $instance_refresh_id"
 ```
 
 > [!TIP]
