@@ -16,15 +16,15 @@ AWS Infrastructure as code using pulumi for AWS and GCP
   - [Usage](#usage)
   - [License](#license)
 
-# Infrastructure Diagram
+## Infrastructure Diagram
 <img src="./webapp/assets/architecture_diagram.png" width="1000" height="600">
 
-# Architecture Components
+## Architecture Components
 
-# Applciation Setup
+## Application Setup
 Before launching our application on cloud using Pulumi, let's configure our DNS, Email server, and SSL certificates [here](./SETUP.md)
 
-## Prerequisites
+### Prerequisites
 The following versions were the latest when I started the project. You could upgrade them as per requirements.
 - Node.js v18.x
 - Pulumi v3.87.0
@@ -77,7 +77,7 @@ config:
   webapp:sslCertificateArn: "arn:aws:acm:us-east-1:*****" //paste your certificate arn
 ```
 
-## Creating resources
+### Creating resources
 Once you're ready with the setup, running `pulumi up` will bring up the required resources
 > [!Tip]
 > Take a cup of coffee ad sit back! it's gonna take a few minutes
@@ -95,7 +95,7 @@ Public route table configuration
 | 0.0.0.0/0 | igw  |
 
 > [!IMPORTANT]
-> Ensure to remove routes to internet gateway for private route tables
+> Ensure to remove route to internet gateway for private route tables
 
 ### EC2 and other services
 It's important to configure security groups for our application to talk to other services and secure access to it. We're using CloudWatch agent to send logs to CloudWatch. All logs are written to a file /var/log/webapp.log. When you configure the CloudWatch Agent to monitor log files, it essentially tails the log files for changes. The agent continuously scans the log files for new entries and sends those entries to CloudWatch Logs in near real-time. We're also using StatsD to collect metrics of the number of API requests. StatsD runs on port 8125 on udp protocol.
