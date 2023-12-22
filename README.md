@@ -149,6 +149,102 @@ Some properties of EBS backup are as follows:
 ]
 ```
 
+## Logs, Metrics and Alarms
+We'll cover the setup of logging, metrics collection, and auto-scaling. This setup involves tailing logs from EC2 instances, obtaining metrics about the number of requests for each API using StatsD, and creating CloudWatch Alarms to trigger Auto Scaling based on CPU utilization.
+
+#### Configuring CloudWatch Logs Agent
+Install the CloudWatch Logs Agent on your EC2 instances while building the AMI.
+```bash
+# Install Cloudwatch-Agent
+wget https://amazoncloudwatch-agent.s3.amazonaws.com/debian/amd64/latest/amazon-cloudwatch-agent.deb
+sudo dpkg -i -E ./amazon-cloudwatch-agent.deb
+```
+
+Create the CloudWatch Logs Agent configuration file (/opt/aws/amazon-cloudwatch-agent/bin/config.json) to tail your application logs.
+```bash
+# Copy config and start cloudwatch agent
+sudo cp -f $APP_DIR/deployment/config.json /opt/aws/amazon-cloudwatch-agent/bin/config.json
+```
+
+```json
+"agent": {
+    "metrics_collection_interval": 10,
+    "logfile": "/var/logs/amazon-cloudwatch-agent.log"
+},
+"logs": {
+    "logs_collected": {
+        "files": {
+            "collect_list": [
+                {
+                    "file_path": "/var/log/webapp.log",
+                    "log_group_name": "csye6225",
+                    "log_stream_name": "webapp"
+                }
+            ]
+        }
+    },
+    "log_stream_name": "cloudwatch_log_stream"
+}
+```
+
+> [!NOTE]
+> CloudWatch configuration file can be found [here](https://github.com/CSYE-6225-FALL23/webapp/blob/main/deployment/config.json)
+
+#### Configuring CloudWatch Metrics and Auto Scaling
+Edit the CloudWatch Agent configuration file to collect metrics from StatsD.
+```json
+...
+"metrics": {
+  "metrics_collected": {
+    "statsd": {
+      "service_address": ":8125",
+      "metrics_collection_interval": 15,
+      "metrics_aggregation_interval": 300
+    }
+  }
+}
+```
+
+> [!TIP]
+> Set the metric collection and aggregation intervals as required
+
+#### Install Node-StatsD Module using npm
+Install the node-statsd module in your Node.js application.
+```bash
+npm install node-statsd
+```
+
+#### Use StatsD in Your App
+In your Node.js application, import and use the node-statsd module to increment metrics.
+```bash
+# Import the module
+const StatsD = require("node-statsd");
+const statsd = new StatsD({ host: "localhost", port: 8125 });
+
+# Increment a metric
+statsd.increment("api.request.createAssignment");
+```
+
+> [!TIP]
+> StatsD increment takes 2 arguments, the name of metric and sample rate
+
+#### Setting Up Auto Scaling Policies and Alarms
+Create a new scaling policy based on CPU utilization and create CloudWatch Alarms that trigger based on CPU utilization.
+
+Alarm for Scaling Out:
+| Type | Value |
+| :---   | :--- |
+| Metric | CPUUtilization |
+| Threshold | >5% |
+| Action | Add 1 instance |
+
+Alarm for Scaling In:
+| Type | Value |
+| :---   | :--- |
+| Metric | CPUUtilization |
+| Threshold | <3% |
+| Action | Remove 1 instance |
+
 ## Cleanup
 Running `pulumi destroy` will cleanup all the resources created by Pulumi.
 

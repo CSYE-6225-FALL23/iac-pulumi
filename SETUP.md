@@ -1,14 +1,18 @@
 # Application Setup
 
 ## DNS configuration using Namecheap and Route53
+Amazon Route 53 is a scalable and highly available Domain Name System (DNS) web service provided by AWS. It allows you to register and manage domain names and perform DNS routing for your applications.
+
 To host our application using [Namecheap](https://www.namecheap.com) and AWS Route53, you need to buy a domain of your choice. Namecheap gives a free .me domain along with 1 SSL certificate for 1 year after signing up with a Github Student Developer Pack. You can also buy a different domain, namecheap has good options.
 
 After you have bought the domain
 - Create a hosted zone with the domain name in Route53
 - Go to DNS management in namechea and paste all the name server (NS) records which Route53 gave
-- DNS propagation takes a while, you should be able to see the NS records using `dig domain.me ns` command
 
-# Setting up Email service with Mailgun
+> [!TIP]
+> DNS propagation takes a while, you should be able to see the NS records using `dig domain.me ns` command
+
+## Setting up Email service with Mailgun
 For sending emails, we use a third party service. It is not mandatory to use mailgun. You can also uses AWS SES Sandbox to deliver emails. In this example, we're going to setup mailgun. Their free tier is limited, additional info is available on their [webpage](https://www.mailgun.com/pricing/). Follow these steps to setup mailgun API.
 - Sign up for [Mailgun](https://www.mailgun.com) and configure the domain from which emails should be sent
 - Copy the DKIM, SPF, MX, and CNAME records and add it to the hosted zone

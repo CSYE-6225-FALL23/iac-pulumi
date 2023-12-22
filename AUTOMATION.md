@@ -81,6 +81,7 @@ AMI takes care of essential installations and setup required for the application
 - Valid Packer template file ([webapp_ami.pkr.hcl](https://github.com/CSYE-6225-FALL23/webapp/blob/main/deployment/ami/webapp_ami.pkr.hcl))
 
 ```bash
+# Build AMI with arguments
 cd deployment/ami
 packer init ./
 packer build \
