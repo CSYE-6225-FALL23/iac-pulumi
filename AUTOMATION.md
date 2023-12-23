@@ -80,6 +80,9 @@ AMI takes care of essential installations and setup required for the application
 - AWS credentials saved with required permissions
 - Valid Packer template file ([webapp_ami.pkr.hcl](https://github.com/CSYE-6225-FALL23/webapp/blob/main/deployment/ami/webapp_ami.pkr.hcl))
 
+> [!IMPORTANT]
+> This workflow does not implement a check if resources are running on the cloud. It's assumed that all services are ran through pulumi beforehand.
+
 ```bash
 # Build AMI with arguments
 cd deployment/ami

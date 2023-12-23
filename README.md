@@ -80,7 +80,7 @@ config:
 ### Creating resources
 Once you're ready with the setup, running `pulumi up` will bring up the required resources
 > [!Tip]
-> Take a cup of coffee ad sit back! it's gonna take a few minutes
+> Take a cup of coffee and sit back! it's gonna take a few minutes
 
 ## Networking
 Our project is set up within a VPC to isolate and secure resources. Subnets are strategically defined to control traffic and enhance network segmentation.
@@ -226,7 +226,7 @@ statsd.increment("api.request.createAssignment");
 ```
 
 > [!TIP]
-> StatsD increment takes 2 arguments, the name of metric and sample rate
+> StatsD increment function takes the name of metric as a parameter. There are further optional parameters [node-statsd](https://www.npmjs.com/package/node-statsd)
 
 #### Setting Up Auto Scaling Policies and Alarms
 Create a new scaling policy based on CPU utilization and create CloudWatch Alarms that trigger based on CPU utilization.
@@ -245,6 +245,42 @@ Alarm for Scaling In:
 | Threshold | <3% |
 | Action | Remove 1 instance |
 
+## Serverless
+Serverless computing is a cloud computing execution model where cloud providers automatically manage the infrastructure needed to run and scale applications. In a serverless architecture, developers focus on writing code for individual functions or services, and the cloud provider takes care of the underlying infrastructure, including server provisioning, scaling, and maintenance.
+
+### Lambda Functions
+AWS Lambda is a serverless computing service provided by Amazon Web Services (AWS). It allows you to run your code without provisioning or managing servers. Lambda automatically scales and handles the infrastructure, executing your code in response to events and managing compute resources as needed.
+Lambda function has 2 components
+- Function: A piece of code that performs a specific task.
+- Handler: The function that Lambda calls to begin execution. It serves as the entry point for the execution of your code. 
+
+In our application, the lambda is triggered by an event pushed to Simple Queue Service (SQS). Below are the steps performed by our lambda funtion
+
+#### Download and Verify Assignment URL
+First step is to verify the URL by downloading the zip from the URL submitted by the user. The status of download is then acknowledged through an email. We're using the `axios` package to download resources.
+
+#### Upload to Google Cloud Storage
+Files downloaded are then stored in a data lake, in our case, GCS. Path used for storing files is `{assignmentId}/{userId}.zip`
+
+#### Send Email using Mailgun
+After following steps to setup a Mailgun [here](./SETUP.md), download the API key for the domain you wish to use to send emails. Configure the API key and domain name as part of environment variables while creating the lambda function.
+
+#### Record Status in DynamoDB
+We're using a NoSQL database to record the status of all emails sent through Mailgun.
+Sample data item
+```json
+{
+  "userId": "123e4567-e89b-12d3-a456-426614174001", // UUID
+  "submissionId": "123e4567-e89b-12d3-a456-426614174002",
+  "email": "sudarshan97.kudli@example.com", // User email
+  "assignmentId": "123e4567-e89b-12d3-a456-426614174003",
+  "submissionStatus": "true/false", // Submmission URL verification
+  "gcsStatus": "success/fail", // Status of bucket upload
+  "emailStatus": "success/fail", // Status of email
+  "timestamp": 1677851994697
+}
+```
+
 ## Cleanup
 Running `pulumi destroy` will cleanup all the resources created by Pulumi.
 
@@ -258,6 +294,9 @@ Services which may charge you
 Other resources which do not incur cost
 - SSL Certificates - Public SSL/TLS certificates provisioned through AWS Certificate Manager are free
 - AMI's - AMI's itself are not chargable but the EBS associated with it will be
+
+## How can we improve this?
+- Automate `pulumi up` and check resource status
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](.\LICENSE) file for details.
