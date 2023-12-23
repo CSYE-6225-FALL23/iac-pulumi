@@ -1,20 +1,36 @@
 # Infrastructure as Code for a webapp
-This project is built to learn and demonstrate the ease of using cloud computing by deploying a web application on AWS that seamlessly integrates various cloud services to ensure a scalable, cost-effective, and highly available solution. Leveraging AWS EC2, the core functionality of the application, is orchestrated as an event-driven nature (serverless computing) of AWS Lambda for efficient handling of tasks such as downloading and validating submitted assignments, uploading files to Google Cloud Storage, sending emails, and storing submission metadata in DynamoDB. This serverless approach not only simplifies the development process but also optimizes resource consumption and enables the application to scale based on requirements.
+This project is built to learn and demonstrate the ease of using cloud computing by deploying a web application on AWS that seamlessly integrates various cloud services to ensure a scalable, cost-effective, and highly available solution. Leveraging AWS EC2, the core functionality of the application, is orchestrated as an event-driven nature (serverless computing) of AWS Lambda for efficient handling of tasks such as downloading and validating submitted assignments, uploading files to Google Cloud Storage, sending emails, and storing submission metadata in DynamoDB. Most parts of the application is [automated workflows](./AUTOMATION.md) using Github Actions.
 
 The infrastructure that supports these web applications is defined and managed by Pulumi, an Infrastructure as Code (IaC) tool. Pulumi uses a declarative approach to define, deploy, and manage cloud infrastructure across multiple cloud providers, ensuring stability and repeatability. Pulumi configuration captures complex application cloud resources, from AWS Lambda functions and DynamoDB tables to network components, facilitating infrastructure configuration and easy updates. With Pulumi, the entire cloud stack is codified, providing developers with the capability to control infrastructure changes and collaborate effectively. This Infrastructure as Code approach increases the maintenance, scalability, and reliability of the web application and provides a solid foundation for its continued development.
 
 ## Table of Contents
-
-- [IAC for webapp](#iac-webapp)
+- [Infrastructure as Code for a webapp](#infrastructure-as-code-for-a-webapp)
   - [Table of Contents](#table-of-contents)
   - [Infrastructure Diagram](#infrastructure-diagram)
-  - [Prerequisites](#prerequisites)
-  - [Getting Started](#getting-started)
-    - [Installation](#installation)
-    - [Configuration](#configuration)
-  - [Architecture Components](#architecture-components)
+  - [Application Setup](#application-setup)
+    - [Prerequisites](#prerequisites)
+    - [Getting Started with Pulumi](#getting-started-with-pulumi)
+      - [Project Creation](#project-creation)
+      - [Pulumi Configuration](#pulumi-configuration)
+      - [Creating resources](#creating-resources)
   - [Networking](#networking)
-  - [Usage](#usage)
+    - [EC2 and other services](#ec2-and-other-services)
+    - [Load Balancer](#load-balancer)
+  - [AMI and Snapshots](#ami-and-snapshots)
+  - [Logs, Metrics and Alarms](#logs-metrics-and-alarms)
+      - [Configuring CloudWatch Logs Agent](#configuring-cloudwatch-logs-agent)
+      - [Configuring CloudWatch Metrics and Auto Scaling](#configuring-cloudwatch-metrics-and-auto-scaling)
+      - [Install Node-StatsD Module using npm](#install-node-statsd-module-using-npm)
+      - [Use StatsD in Your App](#use-statsd-in-your-app)
+      - [Setting Up Auto Scaling Policies and Alarms](#setting-up-auto-scaling-policies-and-alarms)
+  - [Serverless](#serverless)
+    - [Lambda Functions](#lambda-functions)
+      - [Download and Verify Assignment URL](#download-and-verify-assignment-url)
+      - [Upload to Google Cloud Storage](#upload-to-google-cloud-storage)
+      - [Send Email using Mailgun](#send-email-using-mailgun)
+      - [Record Status in DynamoDB](#record-status-in-dynamodb)
+  - [Cleanup](#cleanup)
+  - [Future improvements](#future-improvements)
   - [License](#license)
 
 ## Infrastructure Diagram
