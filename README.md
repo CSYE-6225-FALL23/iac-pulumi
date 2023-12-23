@@ -1,6 +1,7 @@
 # Infrastructure as Code for a webapp
+This project is built to learn and demonstrate the ease of using cloud computing by deploying a web application on AWS that seamlessly integrates various cloud services to ensure a scalable, cost-effective, and highly available solution. Leveraging AWS EC2, the core functionality of the application, is orchestrated as an event-driven nature (serverless computing) of AWS Lambda for efficient handling of tasks such as downloading and validating submitted assignments, uploading files to Google Cloud Storage, sending emails, and storing submission metadata in DynamoDB. This serverless approach not only simplifies the development process but also optimizes resource consumption and enables the application to scale based on requirements.
 
-AWS Infrastructure as code using pulumi for AWS and GCP
+The infrastructure that supports these web applications is defined and managed by Pulumi, an Infrastructure as Code (IaC) tool. Pulumi uses a declarative approach to define, deploy, and manage cloud infrastructure across multiple cloud providers, ensuring stability and repeatability. Pulumi configuration captures complex application cloud resources, from AWS Lambda functions and DynamoDB tables to network components, facilitating infrastructure configuration and easy updates. With Pulumi, the entire cloud stack is codified, providing developers with the capability to control infrastructure changes and collaborate effectively. This Infrastructure as Code approach increases the maintenance, scalability, and reliability of the web application and provides a solid foundation for its continued development.
 
 ## Table of Contents
 
@@ -19,8 +20,6 @@ AWS Infrastructure as code using pulumi for AWS and GCP
 ## Infrastructure Diagram
 <img src="./webapp/assets/architecture_diagram.png" width="1000" height="600">
 
-## Architecture Components
-
 ## Application Setup
 Before launching our application on cloud using Pulumi, let's configure our DNS, Email server, and SSL certificates [here](./SETUP.md)
 
@@ -32,9 +31,9 @@ The following versions were the latest when I started the project. You could upg
 - AWS Account
 - GCP Account
 
-## Getting Started with Pulumi
+### Getting Started with Pulumi
 
-### Project Creation
+#### Project Creation
 
 ```bash
 # Create a new pulumi project in JavaScript
@@ -48,13 +47,13 @@ pulumi config set aws:profile <profilename>
 pulumi config set aws:region <your-region>
 ```
 
-### Configuration
+#### Pulumi Configuration
 Create a profilename.stackname.yaml and add the following variables:
 ```yaml
 config:
   aws:profile: dev
   aws:region: us-east-1
-  gcp:project: csye6225-demo-406318
+  gcp:project: csye6225-dev-406318
   gcp:zone: us-east1
   webapp:appGroup: "csye6225"
   webapp:appPassword: "csye6225"
@@ -62,9 +61,9 @@ config:
   webapp:ebsVolumeSize: "25"
   webapp:ebsVolumeType: "gp2"
   webapp:ec2InstanceType: t2.micro
-  webapp:ec2Keypair: csye6225-demo-key
-  webapp:gcsBucketName: "csye6225-webapp-demo"
-  webapp:hostedZone: "app.sudarshankudli.me"
+  webapp:ec2Keypair: csye6225-dev-key
+  webapp:gcsBucketName: "csye6225-webapp-dev"
+  webapp:hostedZone: "dev.sudarshankudli.me"
   webapp:maxAllowedAzs: "3"
   webapp:project: webapp
   webapp:rdsDB: "csye6225"
@@ -77,7 +76,7 @@ config:
   webapp:sslCertificateArn: "arn:aws:acm:us-east-1:*****" //paste your certificate arn
 ```
 
-### Creating resources
+#### Creating resources
 Once you're ready with the setup, running `pulumi up` will bring up the required resources
 > [!Tip]
 > Take a cup of coffee and sit back! it's gonna take a few minutes
@@ -95,7 +94,7 @@ Public route table configuration
 | 0.0.0.0/0 | igw  |
 
 > [!IMPORTANT]
-> Ensure to remove route to internet gateway for private route tables
+> Make sure to remove route to internet gateway for **private** route tables
 
 ### EC2 and other services
 It's important to configure security groups for our application to talk to other services and secure access to it. We're using CloudWatch agent to send logs to CloudWatch. All logs are written to a file /var/log/webapp.log. When you configure the CloudWatch Agent to monitor log files, it essentially tails the log files for changes. The agent continuously scans the log files for new entries and sends those entries to CloudWatch Logs in near real-time. We're also using StatsD to collect metrics of the number of API requests. StatsD runs on port 8125 on udp protocol.
@@ -188,7 +187,7 @@ sudo cp -f $APP_DIR/deployment/config.json /opt/aws/amazon-cloudwatch-agent/bin/
 ```
 
 > [!NOTE]
-> CloudWatch configuration file can be found [here](https://github.com/CSYE-6225-FALL23/webapp/blob/main/deployment/config.json)
+> CloudWatch configuration file can be found [here](https://github.com/dev-kudli/webapp/blob/main/deployment/config.json)
 
 #### Configuring CloudWatch Metrics and Auto Scaling
 Edit the CloudWatch Agent configuration file to collect metrics from StatsD.
@@ -270,13 +269,13 @@ We're using a NoSQL database to record the status of all emails sent through Mai
 Sample data item
 ```json
 {
-  "userId": "123e4567-e89b-12d3-a456-426614174001", // UUID
+  "userId": "123e4567-e89b-12d3-a456-426614174001",
   "submissionId": "123e4567-e89b-12d3-a456-426614174002",
-  "email": "sudarshan97.kudli@example.com", // User email
+  "email": "sudarshan97.kudli@example.com",
   "assignmentId": "123e4567-e89b-12d3-a456-426614174003",
-  "submissionStatus": "true/false", // Submmission URL verification
-  "gcsStatus": "success/fail", // Status of bucket upload
-  "emailStatus": "success/fail", // Status of email
+  "submissionStatus": "true/false",
+  "gcsStatus": "success/fail",
+  "emailStatus": "success/fail",
   "timestamp": 1677851994697
 }
 ```
@@ -295,7 +294,7 @@ Other resources which do not incur cost
 - SSL Certificates - Public SSL/TLS certificates provisioned through AWS Certificate Manager are free
 - AMI's - AMI's itself are not chargable but the EBS associated with it will be
 
-## How can we improve this?
+## Future improvements
 - Automate `pulumi up` and check resource status
 
 ## License
