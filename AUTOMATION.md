@@ -70,7 +70,7 @@ AMI takes care of essential installations and setup required for the application
 - Give necessary permissions for files/folders
 - Start the app using systemd (We need to restart the app after `pulumi up` to incorporate environment variables)
 
-> We have the packer file in `deployment/ami` folder inside the [webapp](https://github.com/CSYE-6225-FALL23/webapp) repository. The packer build command builds the AMI in our AWS account configured in the file.
+> We have the packer file in `deployment/ami` folder inside the [webapp](https://github.com/dev-kudli/webapp) repository. The packer build command builds the AMI in our AWS account configured in the file.
 
 > [!IMPORTANT]
 > Variables passed to packer command are stored as either Github secrets or variables.
@@ -78,7 +78,7 @@ AMI takes care of essential installations and setup required for the application
 ##### Prerequisites
 - Packer installed (version 1.7.4)
 - AWS credentials saved with required permissions
-- Valid Packer template file ([webapp_ami.pkr.hcl](https://github.com/CSYE-6225-FALL23/webapp/blob/main/deployment/ami/webapp_ami.pkr.hcl))
+- Valid Packer template file ([webapp_ami.pkr.hcl](https://github.com/dev-kudli/webapp/blob/main/deployment/ami/webapp_ami.pkr.hcl))
 
 > [!IMPORTANT]
 > This workflow does not implement a check if resources are running on the cloud. It's assumed that all services are ran through pulumi beforehand.
@@ -126,4 +126,4 @@ echo "Instance Refresh ID: $instance_refresh_id"
 ```
 
 > [!TIP]
-> The entire workflow can be found at [build-ami.yml](https://github.com/CSYE-6225-FALL23/webapp/blob/main/.github/workflows/biuld-ami.yml)
+> The entire workflow can be found at [build-ami.yml](https://github.com/dev-kudli/webapp/blob/main/.github/workflows/biuld-ami.yml)

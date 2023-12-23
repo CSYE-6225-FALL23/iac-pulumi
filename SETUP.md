@@ -6,8 +6,10 @@ Amazon Route 53 is a scalable and highly available Domain Name System (DNS) web 
 To host our application using [Namecheap](https://www.namecheap.com) and AWS Route53, you need to buy a domain of your choice. Namecheap gives a free .me domain along with 1 SSL certificate for 1 year after signing up with a Github Student Developer Pack. You can also buy a different domain, namecheap has good options.
 
 After you have bought the domain
-- Create a hosted zone with the domain name in Route53
-- Go to DNS management in namechea and paste all the name server (NS) records which Route53 gave
+- Create a hosted zone with the domain `yourdomain` in Route53
+- Go to DNS management in namecheap and paste all the name server (NS) records from Route53
+- Create another hosted zone with `dev.yourdomain`
+- Add the NS records from previous step to `yourdomain` (this will route all applciation requests to the subdomain)
 
 > [!TIP]
 > DNS propagation takes a while, you should be able to see the NS records using `dig domain.me ns` command
