@@ -76,8 +76,8 @@ AMI takes care of essential installations and setup required for the application
 > Variables passed to packer command are stored as either Github secrets or variables.
 
 ##### Prerequisites
-- Packer installed (version 1.7.4)
-- AWS credentials saved with required permissions
+- Packer installation on Github runner  (version 1.7.4)
+- AWS credentials (Github secrets) along with required permissions
 - Valid Packer template file ([webapp_ami.pkr.hcl](https://github.com/dev-kudli/webapp/blob/main/deployment/ami/webapp_ami.pkr.hcl))
 
 > [!IMPORTANT]
